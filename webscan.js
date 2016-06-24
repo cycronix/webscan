@@ -42,6 +42,7 @@ limitations under the License.
  * V2.0B9:	Rework RT play (back) to be play-at-delay logic
  * V2.0B10:	Better wild-point rejection scaling for "Tight" scaling
  * V2.0:	Same as V2.0B10, production release
+ * V3b1:	Rework controls/UI, add playRvs
  */
 
 //----------------------------------------------------------------------------------------	
@@ -274,7 +275,7 @@ function configParams(src) {
 	var nplot 	 = getURLParam(src,'n');  	if(nplot != null) setPlots(parseInt(nplot));	setConfig('n', nplot);
 	var uncol 	 = getURLParam(src,'c');  	if(uncol != null) setCols(parseInt(uncol));		setConfig('c', numCol);
 	var fill 	 = getURLParam(src,'f');	setFill(fill=="true");							setConfig('f', fill=="true");
-	var smooth 	 = getURLParam(src,'s');	setSmooth(smooth=="true");						setConfig('s', smooth=="true");
+	var smooth 	 = getURLParam(src,'sm');	setSmooth(smooth=="true");						setConfig('sm', smooth=="true");		// was 's'
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var rtmode 	 = Number(getURLParam(src,'rt'));
@@ -464,6 +465,8 @@ function endsWith(str, suffix) {
 // setAudio:  make and play audio request
 
 //var ascan = null;
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
 function setAudio(url, param, plotidx, duration, time, refTime) {
 	if(debug) console.log("setAudio: "+url+", time: "+time);
 //	if(ascan == null) ascan = new audioscan();		// save recreation every time?
@@ -481,14 +484,18 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
         if (audioRequest.readyState == 4) {
 			if(audioRequest.status==200) {
 				if(audioRequest.response.byteLength > 1) {
+
 					var buffer = new Int16Array(audioRequest.response);
-					var floats = new Array();
+					var nval = buffer.length - waveHdrLen;
 
 					var estRate = (buffer.length - waveHdrLen) / (duration/1000.);
 					if(estRate > 10000) estRate = 22050;		// simple guess one of two rates
 					else				estRate = 8000;
 					
-					var nval = buffer.length - waveHdrLen;
+					var floats = new Array();
+//					var floats = new ArrayBuffer(nval);		// mjm try ArrayBuffer vs Array?
+//					var floats = audioContext.createBuffer(1, nval, estRate);
+
 //					if((top.rtflag==PAUSE) && ((nval / estRate) > 0.2)) nval = 0.2 * estRate;		// limit audio snips to 0.2sec if manually scrolling
 					for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
 //					for(var i=0; i<nval; i++) floats[i] = buffer[i] / 32768.;
@@ -524,7 +531,9 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 						floats = floats.slice(0,nval);
 					}
 
-					new audioscan().playPcmChunk(floats, estRate);
+					if(stepDir != -2) new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
+//					new audioscan().playPcmChunk(audioRequest.response, estRate);
+
 					if(debug) console.debug("time: "+time+", htime: "+htime+", lastreqTime: "+lastreqTime);
 				}
 //				else console.debug('invalid pcm audio response buffer');
@@ -697,32 +706,36 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 //rtCollection -> fetchData -> AjaxGet -> setParamValue
 
 var playDelay=0;
+var playStart=0;
 function rtCollection(time) {
 	stopRT();
 	inProgress = 0;		// reset
+	playStart = time;
 	if(time != 0 && top.rtflag != RT) 
 			playDelay = (new Date().getTime() - time);		// playback mode
 	else 	playDelay = 0.;
 
 	// stripchart fetch data on interval
 	function doRT(dt) {
+		if(debug) console.debug("doRT!");
 		var anyplots=false;
 		if(inProgress > 0) return;		// ease up?
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
 
-		var tright = playTime();						// right-edge time 
 //		if(top.rtflag==RT) tright = tright - pDur;		// safety?
-		
+		var tright = playTime();						// right-edge time 
 		var tleft = tright - pDur;						// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		var dfetch = 1.1*dt + (tright - tfetch);		// fetch enough to go past tright
+		if(debug) console.debug('dfetch: '+dfetch+', pDur: '+pDur+", tfetch: "+tfetch+", tleft: "+tleft+", tright: "+tright+", lastgotTime: "+lastgotTime+", ptime: "+(now-playDelay)+", delta: "+(now-playDelay-tright));
 
 		if(dfetch <= 0) return;		// nothing new
+
 		
-		if(tfetch>=newestTime && top.rtflag!=RT) {
+		if((tfetch>=newestTime||tfetch<oldestTime) && top.rtflag!=RT) {
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
@@ -731,9 +744,8 @@ function rtCollection(time) {
 		}
 		
 		var now = new Date().getTime();
-		if(debug) console.debug('dfetch: '+dfetch+', pDur: '+pDur+", tfetch: "+tfetch+", tleft: "+tleft+", tright: "+tright+", lastgotTime: "+lastgotTime+", ptime: "+(now-playDelay)+", delta: "+(now-playDelay-tright));
 
-		if(singleStep) {															// delayed-start so as not to pre-scroll too much
+		if(singleStep) {												// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
 			singleStep = false;
 		}
@@ -809,10 +821,14 @@ var NCOUNT=20;			// number of updates over which to average sumLag
 
 function playTime() {		// time at which to fetch (msec)
 	var now = new Date().getTime();
-	if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
 	
-	if(top.rtflag != RT) return(now - playDelay);				// playback mode:  let system-clock drive pace relative to fixed offset
-	else {
+	if(top.rtflag != RT) {		// playback mode:  let system-clock drive pace relative to fixed offset
+		var ptime = now - playDelay;					// playFwd
+		if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
+		return ptime;
+	} else {
+		if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
+
 		var ncount = NCOUNT;
 		if(playDelay == 0) { 			// re-init, playDelay reset at each RT start
 			updateNewest();				// this important for DT/WebTurbine that doesn't send newest in HTTP headers
@@ -960,7 +976,7 @@ function refreshCollection(onestep, time, fetchdur, reftime) {
 	if(debug) console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep);
 
 //	if(reftime=="absolute") time = getTime() - getDuration();		// adjust RE time to LE time
-	setPlay(PAUSE,0);										// pause RT
+	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
 }
 
@@ -984,7 +1000,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 	
 	lastreqTime = 0;
 	if(reftime == "absolute") {
-//		lastreqTime = time + fetchdur;					// time=left-edge, lastreqTime=right-edge time
+//		lastreqTime = time + fetchdur;		// time=left-edge, lastreqTime=right-edge time
 		lastreqTime = time;					// time=left-edge, lastreqTime=right-edge time
 
 		if(debug) console.debug('get time: '+time+', oldestTime: '+oldestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
@@ -1241,8 +1257,8 @@ function runstopUpdate() {
 
 function setPlay(mode, time) {
 	top.rtflag = mode;				
-	if(mode==PAUSE) singleStep=false;
-	else			setSingleStep();
+//	if(mode==PAUSE) singleStep=false; else			
+		setSingleStep();
 	if(debug) console.debug('setPlay: mode: '+mode+', time: '+time+', singleStep: '+singleStep);
 	/*
 	if(time >= 0) {			// cluge: PAUSE doesn't change RT/> display mode
@@ -1273,9 +1289,10 @@ function getPlayMode() {
 }
 
 function updatePauseDisplay(mode) {
-	if(mode==PAUSE) 	document.getElementById('||').checked=true;
-	else if(mode==RT) 	document.getElementById('RT').checked=true;
-	else if(mode==PLAY) document.getElementById('>').checked=true;
+	if(stepDir == -2) 		document.getElementById('<').checked=true;
+	else if(mode==PAUSE) 	document.getElementById('||').checked=true;
+	else if(mode==RT) 		document.getElementById('RT').checked=true;
+	else if(mode==PLAY) 	document.getElementById('>').checked=true;
 }
 
 //----------------------------------------------------------------------------------------	
@@ -1304,8 +1321,9 @@ function stopRT() {
 	if(debug) console.log("stopRT.");
 	if(intervalID != 0) clearInterval(intervalID);
 	if(intervalID2 != 0) clearInterval(intervalID2);
-	if(intervalID3 != 0) clearTimeout(intervalID3);
-	intervalID = intervalID2 = intervalID3 = 0;
+	intervalID = intervalID2 = 0;
+	if(intervalID3 != 0) clearTimeout(intervalID3);		// turn off playRvs timer (only) here
+	intervalID3=0;
 	document.getElementById('||').checked = true;
 	for(var i=0; i<plots.length; i++) plots[i].stop(); 
 	singleStep = true;		// mjm 7/30/15
@@ -1315,7 +1333,8 @@ function stopRT() {
 //setSingleStep:  set flag if small incremental view update (more efficient)
 
 function setSingleStep() {
-	singleStep = false;		// default
+	if(stepDir< 0) 	singleStep = true;
+	else			singleStep = false; // default
 	return;					// nah
 	
 //	if(stepDir > 1) { singleStep = false; return; }		// playback mode animation always
@@ -1353,7 +1372,7 @@ function smoothCheck(cb) {
 	for(var i=0; i<plots.length; i++) { 
 		plots[i].setSmooth(doSmooth); plots[i].render(lastreqTime); 
 	}
-	setConfig('s',doSmooth);
+	setConfig('sm',doSmooth);
 }  
 
 function setSmooth(smooth) {
@@ -2067,6 +2086,7 @@ function clearPlotSelect(cb) {
 //goFuncs:  playback data controls
 
 function goBOF() {
+	goPause();
 	reScale = true;
 	stepDir= -1;
 	if(debug) console.log("goBOF");
@@ -2076,10 +2096,38 @@ function goBOF() {
 //	console.log("goBOF, oldestTime: "+oldestTime);
 }
 
-function goReverse() {
+function playRvs() {
+	reScale = true;
+	singleStep = true;
+	stopRT();
+	getLimits(0,0);		// make sure limits are known...
+	stepDir= -2;		// this affects playTime() to play reverse
+
+	intervalID3 = 
+		setInterval(
+				function() {
+					if(inProgress) {
+						if(debug) console.debug("playRvs inProgress!");
+						return;			// throttle
+					}
+					var mDur = getDuration();		// duration msec
+					var inc = -0.1 * mDur;
+					var newtime = getTime()+inc;
+					if(debug) console.debug("playRvs getTime: "+newtime+", oldestTime: "+oldestTime);
+					if(newtime <= (oldestTime+mDur)) {
+						clearTimeout(intervalID3); intervalID3=0;
+						goBOF();
+					} else {
+						refreshCollection(true,newtime, mDur, "absolute");
+						setTime(newtime);		// move back 0.1x duration from left-edge time
+					}
+				}, 
+				tDelay/10);				// 10x rate
+
 }
 
 function goStepRvs() {
+	goPause();
 	stepDir= -1;
 	var mDur = getDuration();		// duration msec
 	var inc = -1 * mDur;
@@ -2089,12 +2137,12 @@ function goStepRvs() {
 
 function goPause() {
 	reScale = true;
-
 	stepDir= 0;
 	setPlay(PAUSE,0);			// was ,-1
 }
 
 function goStepFwd() {	
+	goPause();
 	stepDir= 1;
 	var mDur = getDuration();		// duration msec	
 	var inc = 1 * mDur;				// msec
@@ -2103,6 +2151,7 @@ function goStepFwd() {
 }
 
 function playFwd() {
+	goPause();
 	reScale = true;
 	getLimits(0,0);		// make sure limits are known...
 
@@ -2119,6 +2168,7 @@ function playFwd() {
 }
 
 function goEOF() {
+	goPause();
 	reScale = true;
 	stepDir= 1;
 	if(debug) console.log("goEOF");
@@ -2129,6 +2179,7 @@ function goEOF() {
 
 function goRT() {
 	reScale = true;
+	stepDir=2;
 	if(debug) console.log("goRT!");
 	refreshCollection(false,0,getDuration(), "newest");
 
@@ -2143,6 +2194,7 @@ function goRT2() {
 
 var maxwaitTime=0;
 function goTime(percentTime) {
+	stepDir=0;		// turn off playRvs
 	if(percentTime==0) {
 //		getLimits(1,0);		// force new limits
 		refreshCollection(true,0,getDuration(),"oldest");
@@ -2467,7 +2519,7 @@ function plot() {
 
 		else if(scalingMode == "Tight") {						// Tight scaling
 
-			var wildPointReject = 3;							// wild point reject > this number stdDev	
+			var wildPointReject = 5;							// wild point reject > this number stdDev	
 			if(wildPointReject > 0) {						
 				var getAverage = function( data ){
 					var i = data.length, 
@@ -2491,7 +2543,7 @@ function plot() {
 					var mean = getAverage(timeSeries.data);
 					var stdDev = getStandardDeviation(timeSeries.data);
 					var wpmax = mean + wildPointReject * stdDev;
-					var wpmin = mean = wildPointReject * stdDev;
+					var wpmin = mean - wildPointReject * stdDev;
 //					console.debug("series: "+d+", mean: "+mean+", stdDev: "+stdDev+", oldMin: "+range.min+", oldMax: "+range.max);
 					
 					if (timeSeries.data.length) {
@@ -2735,15 +2787,16 @@ function plotbox() {
 //----------------------------------------------------------------------------------------	
 
 //---------------------------------------------------------------------------------	
-var audioContext=null;
+//var audioContext=null;
 var audioAlert=true;
 function audioscan() {
 	this.rate = 22050;			// hard code audio rate for now.  22050 is slowest Web Audio supports
 //	this.rate = 8000;			// need to derive rate...
 	
 	if(audioContext == null) {
-		var contextClass = (window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext);
-		if (contextClass) audioContext = new contextClass();
+//		var contextClass = (window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext);
+//		if (contextClass) audioContext = new contextClass();
+		audioContext = new (window.AudioContext || window.webkitAudioContext)();
 	}	
 	if(audioContext == null) {
 		if(audioAlert) {
@@ -2766,7 +2819,9 @@ function audioscan() {
 			console.warn("playPcmChunk zero length audio!");
 			return;
 		}
-		var audioBuffer = audioContext.createBuffer(1, audio.length , srate);
+	
+		// Warning:  Safari doesn't work with srate<22050
+		var audioBuffer = audioContext.createBuffer(1, audio.length, srate);	
 		audioBuffer.getChannelData(0).set(audio);
 		audioSource.buffer = audioBuffer;
 		audioSource.start ? audioSource.start(0) : audioSource.noteOn(0);
