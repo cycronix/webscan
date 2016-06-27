@@ -104,7 +104,8 @@ var paramTime = new Array();		// array of times for each parameter
 //----------------------------------------------------------------------------------------
 //webscan:  top level main method
 
-function webscan() {
+function webscan(server) {
+	if(server) serverAddr = server;
 	if(debug) console.log('start');
 	HTML5check();
 
@@ -279,6 +280,7 @@ function configParams(src) {
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var rtmode 	 = Number(getURLParam(src,'rt'));
+	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
 	
 //	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot);
 	
