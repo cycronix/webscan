@@ -4,9 +4,12 @@
 
 <head>
 	<meta charset="UTF-8">
-	<title>WebScan by Cycronix</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>WebScan</title>
 	 
 	<script type="text/javascript" src="smoothie.js"></script>
+		<script type="text/javascript" src="resampler.js"></script>
+	
 	<script type="text/javascript" src="webscan.js"></script>
 	
 	<link rel="icon" href="favicon.ico" type="image/x-icon" />
@@ -15,12 +18,13 @@
 
 <?php include('header.php'); ?>
 
-<table id="title" class="a" border=1 >
+<div id="wrapper">
+<div id="dtitle">
+<table id="title" class="a" border=1 width="100%">
 	<tr>
-	<td style="white-space: nowrap; padding: 0px 4px 0px 4px" align="center" width="20%"><label class="h" id="timestamp">TimeStamp</></td>
-	<td style="overflow: hidden; whitespace: nowrap;"; align="center"><label class="h">WebScan by Cycronix</></td>
+	<td style="overflow: hidden; whitespace: nowrap;"; align="center"><label class="h">WebScan</></td>
 	
-	<td colspan=2 align="center" width="20%" id="opt1"><button style="padding: 4px 10px;"/>Options</td>
+	<td colspan=2 align="center" width="25%" id="opt1")></td>
 	    <script type="text/javascript">
 	        document.getElementById('opt1').onclick =  function() {
 	    		var disp = document.getElementById('options').style.display;
@@ -32,32 +36,38 @@
 	    </script>
 	</tr>
 </table>
+</div>
 
-
+<div id="dgraphs">
 <table id="graphs" align="center" border=1></table>
+</div>
 
-
-<table id="controls" class="a" align="center" border=1>
-	<tr>
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="|<"> <label for="|<"  onMouseDown="goBOF()"	>|&lt;</label> </td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="<">  <label for="<"   onMouseDown="playRvs()"	>&#60;</label></td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="<|"> <label for="<|"  onMouseDown="goStepRvs()"	>&#60;|</label></td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="||"> <label for="||"  onMouseDown="goPause()"	>||</label> </td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="|>"> <label for="|>"  onMouseDown="goStepFwd()"	>|&#62;</label></td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">">  <label for=">"   onMouseDown="playFwd()"	>&#62;</label></td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">|"> <label for=">|"  onMouseDown="goEOF()"	>&gt;|</label> </td> 
-		<td style="white-space: nowrap;"> <input type="radio" name="radios" id="RT"> <label for="RT"  onMouseDown="goRT()"	>RT</label> </td> 
-	</tr>
-</table>
+<div id="dcontrols">
+<table id="controls" class="a" align="center" border=1 height="100%">
 <tr>
-<table id="tselect" class="a" align="center" border=1>
-	<td width="99%"> <input id="TimeSelect" type="range" offsetHeight="0" clientHeight="10px" min="0" max="100" step=0.1 onchange="timeSelect(this)" oninput="timeSelect(this)"> </td>
+	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">"> <label id="play" for=">" onclick="togglePlay(this);">&gt;</label> </td> 
+	<td style="white-space: nowrap;"> <input type="radio" name="radios" id="|<"> <label for="|<"  onMouseDown="goBOF()"	>[</label> </td> 
+	<td width="75%">
+	<table align="center" width="100%">
+	<tr align="center">
+	<td style="white-space: nowrap; align="center" width="100%"><label class="t" id="timestamp">TimeStamp</></td>
+	</tr><tr>
+	<td align="center" width="99%"> <input id="TimeSelect" type="range" min="0" max="100" step=0.1 
+		onchange="timeSelect(this)" oninput="timeSelect(this)"> </td>
+	</tr>
+	</table>
+	</td>
+	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">|"> <label for=">|"  onMouseDown="goEOF()"	>]</label> </td> 
+	<td style="white-space: nowrap;"> <input type="radio" name="radios" id="RT"> <label for="RT"  onMouseDown="goRT()"	>RT</label> </td> 
 </tr>
 </table>
+</div>
+
+</div>
 
 <div id="options"  border=1>
     <table class="o">
-    	<tr><td colspan=2 align="center">Webscan V3b2</td></tr>
+    	<tr><td colspan=2 align="center">Webscan V3b4</td></tr>
         <tr><td>Smooth</td><td><input id="smooth" type="checkbox" onclick="smoothCheck(this)"></td></tr>
         
         <tr><td>Fill</td><td><input id="fill" type="checkbox" onclick="fillCheck(this)"></td></tr>

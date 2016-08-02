@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Cycronix
+Copyright 2016 Cycronix
 
 WebScan V1.0 was developed under NASA Contract NAS4-00047 
 and the U.S. Government retains certain rights.
@@ -43,6 +43,7 @@ limitations under the License.
  * V2.0B10:	Better wild-point rejection scaling for "Tight" scaling
  * V2.0:	Same as V2.0B10, production release
  * V3b1:	Rework controls/UI, add playRvs
+ * V3b2-4:	Streamline, responsive UI
  */
 
 //----------------------------------------------------------------------------------------	
@@ -88,6 +89,7 @@ var isImage=false;					// latest plot is image?
 var numCol=0;						// numcols per plot row (0=auto)
 var reScale=true;					// one shot rescale flag
 var rtmode=0;						// real-time mode flag
+var playStr="&gt;";					// ">" play mode
 
 top.rtflag=0;						// RT state (for eavesdroppers)
 top.plotTime=0;						// sec
@@ -138,14 +140,29 @@ function webscan(server) {
 	window.onresize = function() {
 		if(timeOut != null) clearTimeout(timeOut);
 		timeOut = setTimeout( function(){ rebuildPage(); },200); 
+		setDivSize();		// redundant?
 	};
 
 	buildCharts();					// build  stripcharts
-	setTimeout(function(){buildCharts();}, 500); 		// rebuild after init? (for chartscan, complete channel lists)
+	setTimeout(function(){buildCharts();}, 500); 	// rebuild after init? (for chartscan, complete channel lists)
 	getLimits(1,1);					// establish time limits
 //	goEOF();
-	setTimeout(function(){ goEOF();}, 1000); 		// make sure data is shown at startup (was goBOF, 1000)
+	setTimeout(function(){ goBOF();}, 1000); 		// make sure data is shown at startup (was goBOF, 1000)
 
+}
+
+//----------------------------------------------------------------------------------------
+// set div-heights dynamically so graphs fills space between title and control divs
+function setDivSize() {
+	var wrap=document.getElementById('wrapper').clientHeight;
+	var ch=document.getElementById('dcontrols').clientHeight;
+//	document.getElementById('dcontrols').style.bottom="0px";
+	var top=document.getElementById('title').clientHeight;
+	var bot=document.getElementById('dcontrols').offsetTop;
+	document.getElementById('dgraphs').style.top = top+"px";
+//	document.getElementById('dgraphs').style.bottom = ch+"px";
+	document.getElementById('dgraphs').style.bottom=(wrap-bot)+"px";
+//	console.log('resize, top: '+top+', bot: '+bot+', h: '+wrap+', newsize: '+(wrap-bot));
 }
 
 //----------------------------------------------------------------------------------------
@@ -188,13 +205,15 @@ function myURL() {
 	var myurl = (window.location != window.parent.location) ? window.parent.location : window.location;
 //	console.debug('myURL: '+myurl+', window.location: '+window.location+', window.parent.location: '+window.parent.location);
 //	console.debug('top.document.URL: '+top.document.URL);
-	return myurl;
+	return window.location;			// just return iframe url to get params!
+//	return myurl;
 }
 
 //----------------------------------------------------------------------------------------
 //setURLParam:  update or add query string parameter to URL
 
 function setURLParam(uri, key, value) {
+	if(!value || value=="") return uri;		// no-op
 	var evalue = escape(''+value);
 	if(uri==null) uri="";
 	var newuri = uri;
@@ -717,6 +736,8 @@ function rtCollection(time) {
 			playDelay = (new Date().getTime() - time);		// playback mode
 	else 	playDelay = 0.;
 
+	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
+	
 	// stripchart fetch data on interval
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
@@ -732,10 +753,9 @@ function rtCollection(time) {
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		var dfetch = 1.1*dt + (tright - tfetch);		// fetch enough to go past tright
-		if(debug) console.debug('dfetch: '+dfetch+', pDur: '+pDur+", tfetch: "+tfetch+", tleft: "+tleft+", tright: "+tright+", lastgotTime: "+lastgotTime+", ptime: "+(now-playDelay)+", delta: "+(now-playDelay-tright));
+		if(debug) console.debug('dfetch: '+dfetch+', pDur: '+pDur+", tfetch: "+tfetch+", tleft: "+tleft+", tright: "+tright+", lastgotTime: "+lastgotTime+", dt: "+dt);
 
 		if(dfetch <= 0) return;		// nothing new
-
 		
 		if((tfetch>=newestTime||tfetch<oldestTime) && top.rtflag!=RT) {
 			if(debug) console.log('EOF, stopping monitor');
@@ -784,6 +804,7 @@ function rtCollection(time) {
 	intervalID2 = 1;					// so intervalID doesn't pause video before can check		
 //	for(var j=0; j<plots.length; j++) plots[j].start();			
 
+	doRT(dt);		// startup faster without delay
 	intervalID = setInterval(function() {doRT(dt);}, dt);
 	
 	// ------------------------------ faster video updates:
@@ -826,10 +847,12 @@ function playTime() {		// time at which to fetch (msec)
 	
 	if(top.rtflag != RT) {		// playback mode:  let system-clock drive pace relative to fixed offset
 		var ptime = now - playDelay;					// playFwd
-		if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
+		if(debug) 
+			console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
 		return ptime;
 	} else {
-		if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
+		if(debug) 
+			console.debug('RT playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
 
 		var ncount = NCOUNT;
 		if(playDelay == 0) { 			// re-init, playDelay reset at each RT start
@@ -1259,28 +1282,21 @@ function runstopUpdate() {
 
 function setPlay(mode, time) {
 	top.rtflag = mode;				
-//	if(mode==PAUSE) singleStep=false; else			
-		setSingleStep();
+	setSingleStep();
 	if(debug) console.debug('setPlay: mode: '+mode+', time: '+time+', singleStep: '+singleStep);
-	/*
-	if(time >= 0) {			// cluge: PAUSE doesn't change RT/> display mode
-		if(mode==RT) 	document.getElementById('RTlab').innerHTML = 'RT';
-		else			document.getElementById('RTlab').innerHTML = '>';
-	}
-	 */	
 	if(mode==PAUSE) {				// stop RT
 		stopRT();
-//		for(var i=0; i<plots.length; i++) plots[i].stop(); 
 		inProgress=0;			// make sure not spinning
 		document.body.style.cursor = 'default';		
+		document.getElementById('play').innerHTML = playStr;
+		setDivSize();			// resize divs on pause
 	}
 	else {
-//		rtCollection(time);
-//		goRT();		// infinite recursion danger, refreshCollection calls setPause()
 		if(debug) console.debug('starting plots, singlestep: '+singleStep);
 		if(!singleStep)	// no restart animation if singlestep mode
 			for(var i=0; i<plots.length; i++) plots[i].start();
 		rtCollection(time);
+		document.getElementById('play').innerHTML = '||';
 	}
 
 	updatePauseDisplay(mode);
@@ -1292,9 +1308,15 @@ function getPlayMode() {
 
 function updatePauseDisplay(mode) {
 	if(stepDir == -2) 		document.getElementById('<').checked=true;
-	else if(mode==PAUSE) 	document.getElementById('||').checked=true;
+	else if(mode==PAUSE){
+// 		document.getElementById('>').innerHTML = "||";
+		document.getElementById('play').innerHTML = playStr;
+	}
 	else if(mode==RT) 		document.getElementById('RT').checked=true;
-	else if(mode==PLAY) 	document.getElementById('>').checked=true;
+	else if(mode==PLAY) {
+//		document.getElementById('>').innerHTML = ">";
+		document.getElementById('play').innerHTML="||";
+	}
 }
 
 //----------------------------------------------------------------------------------------	
@@ -1303,7 +1325,7 @@ function updatePauseDisplay(mode) {
 function rePlay() {
 	var mode = PAUSE;
 	if(document.getElementById('RT').checked) mode = RT;
-	else if(document.getElementById('>').checked) mode = PLAY;
+	else if(document.getElementById('play').innerHTML=="||") mode = PLAY;
 
 	if(mode==PAUSE && !isImage && oldestTime > 0) {
 		refreshCollection(true,getTime(),getDuration(),"absolute");	// auto-refill plots to full duration??
@@ -1326,7 +1348,7 @@ function stopRT() {
 	intervalID = intervalID2 = 0;
 	if(intervalID3 != 0) clearTimeout(intervalID3);		// turn off playRvs timer (only) here
 	intervalID3=0;
-	document.getElementById('||').checked = true;
+	document.getElementById('play').innerHTML = playStr;
 	for(var i=0; i<plots.length; i++) plots[i].stop(); 
 	singleStep = true;		// mjm 7/30/15
 }
@@ -1356,14 +1378,14 @@ function setSingleStep() {
 //isPause:  return true if paused
 
 function isPause() {
-	return 	document.getElementById('||').checked;
+	return 	document.getElementById('play').innerHTML==playStr;
 }
 
 //----------------------------------------------------------------------------------------	
 //isRT:  true/false if in pause state
 
 function isRT() {
-	return !document.getElementById('||').checked;
+	return !document.getElementById('play').innerHTML==playStr;
 }
 
 //----------------------------------------------------------------------------------------	
@@ -1459,6 +1481,8 @@ function rebuildPage2(maxWait) {
 	
 	refreshCollection(true,getTime(),getDuration(),"absolute");					// auto-refill plots to full duration
 	if(!isPause()) 	goRT();
+
+
 }
 
 //----------------------------------------------------------------------------------------
@@ -1467,10 +1491,22 @@ function rebuildPage2(maxWait) {
 function setTimeNoSlider(time) {
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	updateTimeLimits(time);
+	
+	var month = new Array();
+	month[0] = "Jan";	month[1] = "Feb";	month[2] = "Mar";	month[3] = "Apr";	month[4] = "May";	month[5] = "Jun";
+	month[6] = "Jul";	month[7] = "Aug";	month[8] = "Sep";	month[9] = "Oct";	month[10] = "Nov";	month[11] = "Dec";
+	
 	d = new Date(time);		// msec
-	var dstring = d.toUTCString();
-	dstring = dstring.split(", ")[1];		// string leading "Day, "
-	document.getElementById("timestamp").innerHTML = dstring;
+//	var dstring = d.toUTCString();
+//	dstring = dstring.split(", ")[1];		// string leading "Day, "
+
+	var dstring = ("0"+(d.getDate()+1)).slice(-2) + " " + month[d.getMonth()] + " " + 
+    d.getFullYear() + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + ":" + ("0" + d.getSeconds()).slice(-2);
+	
+	var cb = document.getElementById('myDuration');
+	var durString = cb.options[cb.selectedIndex].text;
+
+	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')';
 	top.plotTime = time / 1000.;		// global, units=sec
 	
 //	if(debug) console.debug('setTimeNoSlider: '+time);
@@ -1483,10 +1519,12 @@ function setTime(time) {
 	
 	// set time slider
 //	if(rtflag!=PAUSE) 				// no fight over timeslider
-		setTimeSlider(time);		
+	setTimeSlider(time);		
 }
 
 function setTimeSlider(time) {
+	if(debug) console.debug('setTimeSlider, time: '+time+', oldest: '+oldestTime+', newest: '+newestTime);
+	
 	var el = document.getElementById('TimeSelect');
 	if(newestTime == 0 || oldestTime == 0) {   			// failsafe	
 		if(debug) console.log("WARNING:  setTimeSlider without limits, newestTime: "+newestTime+", oldestTime: "+oldestTime);
@@ -1497,7 +1535,7 @@ function setTimeSlider(time) {
 	var mDur = 0.;
 	if(!isImage) mDur = getDuration();		// duration msec	// try without duration adjust 7/2/15
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
-	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', isImage: '+isImage+', mDur: '+mDur);
+//	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', isImage: '+isImage+', mDur: '+mDur);
 	el.value = percent;
 }
 
@@ -1549,13 +1587,13 @@ function getLimits(forceFlagOld, forceFlagNew) {
 	}
 	
 //	var status = getLimits2(plots[iplot].params[0], forceFlagNew);
-	
 	if(oldestTime == 0 || oldestTime > newestTime || forceFlagOld) {
 		fetchData(plots[iplot].params[0], 0, 0, 0, "oldest");
 	}
 
 	
-//	if(debug) console.debug("getLimits out, oldestTime: "+oldestTime+", newestTime: "+newestTime);
+//	if(debug) 
+//		console.debug("getLimits out, oldestTime: "+oldestTime+", newestTime: "+newestTime);
 //	if(!forceFlagOld && !forceFlagNew) setTime(otime);
 	
 	return(status);
@@ -1641,11 +1679,21 @@ function buildCharts() {
 //	var ncol = 2;		// number of columns (need from UI)
 	var ncol = numCol;
 	if(ncol == 0) {	 // auto
-		switch(plots.length) {	
-		case 4:		case 6:		case 8:		case 10:	case 14:	ncol = 2;	break;
-		case 9:		case 12:	case 15:	case 18:				ncol = 3;	break;
-		case 16:	case 20:										ncol = 4;	break;
-		default:													ncol = 1;	break;
+		if(window.innerWidth > window.innerHeight) {		// wider than tall
+			switch(plots.length) {	
+			case 2:		case 4:		case 6:		case 8:		case 10:	case 14:	ncol = 2;	break;
+			case 9:		case 12:	case 15:	case 18:					ncol = 3;	break;
+			case 16:	case 20:	ncol = 4;	break;
+			default:											ncol = 1;	break;
+			}
+		}
+		else {
+			switch(plots.length) {				// taller than wide
+			case 4:		case 6:		case 8:		case 10:	case 14:	ncol = 2;	break;
+			case 9:		case 12:	case 15:	case 18:			ncol = 3;	break;
+			case 16:	case 20:							ncol = 4;	break;
+			default:									ncol = 1;	break;
+			}
 		}
 	}
 	if(ncol > plots.length) ncol = plots.length;
@@ -1668,27 +1716,40 @@ function buildCharts() {
 
 			var prow = plotTable.insertRow(0);
 			var pcell0 = prow.insertCell(0); 
-			pcell0.style.padding = 0;
+
+			// parent div to hold chanbox, chanlist, clearbox
+			var pdiv = document.createElement('div');
+			pdiv.id = "phead";
+			pcell0.appendChild(pdiv);
 
 			// + addchan button
-			addChanBox(iplot, pcell0);					
+			addChanBox(iplot, pdiv);					
+
+			// child div to hold chanlist
+			var cdiv = document.createElement('div');
+			cdiv.style.float="left";
+			cdiv.style.width="1px";		// nominal, will overflow
+			pdiv.appendChild(cdiv);
 
 			//  create label for each param
 			for(var j=0; j<plots[iplot].params.length; j++) {
 				nparam++;						
 				// create label element above plot
 				var node = document.createElement('label');
-				node.innerHTML = plots[iplot].params[j];
+				node.style.whiteSpace="nowrap";
+				var param = plots[iplot].params[j];
+				if(plots[iplot].params.length > 1) param = param.split("/").pop(); 	// truncate to just param name if multiple
+				node.innerHTML = param;
 				node.id = 'label'+j;
 				node.style.color = plots[iplot].color(j);
-				node.style.padding = '0 6px';
-				pcell0.appendChild(node);	
+				node.style.padding = '0 4px';
+				cdiv.appendChild(node);	
 				setConfig('p'+iplot+''+j,plots[iplot].params[j]);
 			}
 
 			// x clearPlot button
 			if(plots[iplot].params.length > 0) {		// only if any curves to clear
-				addClearBox('clear'+iplot, clearPlotSelect, 'x Clear', pcell0);
+				addClearBox('clear'+iplot, clearPlotSelect, 'x', pdiv);
 			}
 
 			// create a canvas for each plot box
@@ -1706,6 +1767,7 @@ function buildCharts() {
 
 //			canvas.width = graphs.clientWidth - 15;
 			Hg = (graphs.clientHeight / nrow) - pcell0.offsetHeight - 20;
+//			Hg = 0.95*((graphs.clientHeight / nrow) - pcell0.offsetHeight);
 			canvas.height = Hg;		// ensure same for all
 
 			canvas.align="center";
@@ -1719,6 +1781,7 @@ function buildCharts() {
 		}
 	}
 
+
 	buildChanLists();		// re-initialize (overkill?)
 	updateSelect();			// update-interval selection menu
 	
@@ -1728,6 +1791,8 @@ function buildCharts() {
 //	inProgress=0;			// failsafe 
 //	setPause(false,0);		// auto pause (less perplexing) 
 	refreshInProgress = false;
+
+	setDivSize();
 }	
 
 //----------------------------------------------------------------------------------------
@@ -1971,7 +2036,7 @@ function buildChanLists() {
 		for (var i=ogl.length-1;i>=0;i--) add.removeChild(ogl[i]);
 
 		var elo = document.createElement("option");
-		elo.value = elo.textContent = '+ Chan';
+		elo.value = elo.textContent = '+';
 		add.appendChild(elo);
 		var mysrc=''; 	var elg='';
 		var listlen = channels.length;
@@ -2007,8 +2072,13 @@ function buildChanLists() {
 function addChanBox(idx, el) {
 	var input = document.createElement('select');
 	input.id = 'add'+idx;
-	input.style.width = '100px';		// try
-	el.appendChild(input);
+//	input.style.width = '2.5em';		// was '80px'
+	var div = document.createElement('div');
+	div.style.width='2em';
+	div.style.float='left';
+	div.style.overflow='hidden';
+	el.appendChild(div);
+	div.appendChild(input);
 	input.addEventListener('mousedown', pauseRebuild);
 	input.addEventListener('change', addChanSelect);
 }
@@ -2027,7 +2097,14 @@ function addClearBox(id, cb, lab, el) {
 	var input = document.createElement('button');
 	input.id = id;
 	input.textContent = lab;
-	el.appendChild(input);
+	input.textAlign="top";
+
+	var div = document.createElement('div');
+//	div.style.width='2vmax';
+	div.style.float='right';
+	div.style.textAlign="right";
+	el.appendChild(div);
+	div.appendChild(input);
 	input.addEventListener('click', clearPlotSelect);	
 }
 
@@ -2040,7 +2117,7 @@ function addChanSelect() {
 	noRebuild=true;					// no rebuild charts during selection
 
 	var chan = this.options[this.selectedIndex].value;
-	if(chan == '+ Chan') return;	// firewall: not a real selection
+	if(chan == '+') return;	// firewall: not a real selection
 
 	if(chan=='' || endsWith(chan,'/')) {
 		this.selectedIndex = 0;
@@ -2167,6 +2244,18 @@ function playFwd() {
 		setPlay(PLAY,getTime());
 		// starts charts with first-fetch = mdur followed by tDelay updates without restarting charts...
 	}
+}
+
+function togglePlay(el){
+	if(el.innerHTML=="||") { 
+		el.innerHTML=playStr;  
+		goPause(); 
+	}
+	else { 
+		el.innerHTML='||'; 	
+		playFwd(); 
+	}
+	return false;
 }
 
 function goEOF() {
@@ -2302,10 +2391,10 @@ function plot() {
 		},
 		labels:{ 
 			fillStyle:'#000000', 
-			fontSize:16, 
+			fontSize:'12', 
 			precision:1 
 		},
-//		timestampFormatter:SmoothieChart.timeFormatter
+//		timestampFormatter:SmoothieChart.timeFormatter,
 		timestampFormatter:myTimeFormatter,
 		timerangeFormatter:myRangeFormatter
 	});
@@ -2340,21 +2429,37 @@ function plot() {
 	// Sample timestamp formatting function
 	function myTimeFormatter(date) {
 		function pad2(n) { return (n < 10 ? '0' : '') + n; }
-		var y= pad2(date.getUTCFullYear() - 2000);
-		var M= pad2(date.getUTCMonth()+1);
-		var d= pad2(date.getUTCDate());
-		var h= pad2(date.getUTCHours());
-		var m= pad2(date.getUTCMinutes());
-		var s= pad2(date.getUTCSeconds());
+//		var y= pad2(date.getUTCFullYear() - 2000);
+//		var M= pad2(date.getUTCMonth()+1);
+//		var d= pad2(date.getUTCDate());
+//		var h= pad2(date.getUTCHours());
+//		var m= pad2(date.getUTCMinutes());
+//		var s= pad2(date.getUTCSeconds());
+		var y= pad2(date.getFullYear() - 2000);
+		var M= pad2(date.getMonth()+1);
+		var d= pad2(date.getDate());
+		var h= pad2(date.getHours());
+		var m= pad2(date.getMinutes());
+		var s= pad2(date.getSeconds());
+		var ms= pad2(date.getMilliseconds());
 //		console.debug('duration: '+duration);
 		var now = new Date().getTime();		// msec since 1970
 		var then = date.getTime();
 		var longAgo = (now - then) > 86400000;	// 1 day (msec)
-		if(longAgo && duration > 864000)		return M+'/'+d+'/'+y;		// 10 days (duration=sec)
-		else if(longAgo && duration >= 600) 	return M+'/'+d+'/'+y+' '+h+':'+m;
-		else if(longAgo)						return M+'/'+d+'/'+y+' '+h+':'+m+':'+s;
-		else if(duration >= 600)				return h+':'+m;		// trust sec==00 if min>=10
-		else									return h+':'+m+':'+s;
+		if(longAgo && duration > 864000)	return M+'/'+d+'/'+y;		// 10 days (duration=sec)
+//		else if(longAgo && duration >= 600) 	return M+'/'+d+'/'+y+' '+h+':'+m;
+		else if(longAgo && duration >= 86400) 	return M+'/'+d+' '+h+':'+m;
+//		else if(longAgo)			return M+'/'+d+'/'+y+' '+h+':'+m+':'+s;
+		else if(duration >= 600)		return h+':'+m;		// trust sec==00 if min>=10
+		else if(duration >= 10)			return h+':'+m+':'+s;
+		else if(duration >= 1) {
+			var fsec = parseFloat(s+'.'+ms).toFixed(1).toString();		// 1 decimal digit
+			return h+':'+m+':'+fsec;
+		}
+		else {
+			var fsec = parseFloat(s+'.'+ms).toString();	// trim trailing zeros
+			return ':'+fsec;
+		}
 	};
 	
 	// add a time series line to plot
@@ -2598,7 +2703,7 @@ function plot() {
 			else {												// Standard scaling
 				this.ymax = vmax;
 				this.ymin = vmin;			
-				if(scalingMode == "Auto") reScale = false;		// one-shot rescale flag
+				if(plots.length==1 && scalingMode=="Auto") reScale = false;	// one-shot rescale flag (logic doesn't work per-plot)
 				if(debug) console.debug("stdscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
 			}
 
