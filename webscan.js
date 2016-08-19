@@ -298,10 +298,11 @@ function configParams(src) {
 	var smooth 	 = getURLParam(src,'sm');	setSmooth(smooth=="true");						setConfig('sm', smooth=="true");		// was 's'
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
-	var rtmode 	 = Number(getURLParam(src,'rt'));
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
-	
-//	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot);
+
+	// RT mode (one-shot param)
+	rtmode 	 	 = Number(getURLParam(src,'rt'));
+//	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
 	
 	for(var i=0; i<nplot; i++) {
 		for(var j=0; j<10; j++) {
@@ -767,18 +768,19 @@ function rtCollection(time) {
 		
 		var now = new Date().getTime();
 
-		if(singleStep) {												// delayed-start so as not to pre-scroll too much
+		console.debug("singleStep: "+singleStep+", rtmode: "+rtmode);
+		if(singleStep && rtmode==0) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
 			singleStep = false;
 		}
-
+		
 		for(var j=0; j<plots.length; j++) {
 			plots[j].setDelay(playDelay);
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
 				if(endsWith(param,".jpg")) continue;
-				anyplots=true;		
+				anyplots=true;	
 				if(rtmode==0)
 				fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 				else
@@ -1534,8 +1536,9 @@ function setTimeSlider(time) {
 	}
 	var mDur = 0.;
 	if(!isImage) mDur = getDuration();		// duration msec	// try without duration adjust 7/2/15
+	if(mDur > (newestTime-oldestTime)) mDur = newestTime-oldestTime;
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
-//	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', isImage: '+isImage+', mDur: '+mDur);
+	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
 	el.value = percent;
 }
 
@@ -2309,6 +2312,7 @@ function goTime(percentTime) {
 	}
 }
 
+// go to percentTime, where time is right-edge (newest) of duration time interval
 function goTime2(percentTime) {
 //	if(debug) console.debug("goTime2: "+percentTime+", old: "+oldestTime+", new: "+newestTime);
 	maxwaitTime=0;
@@ -2321,13 +2325,13 @@ function goTime2(percentTime) {
 	if(!isImage) mDur = getDuration();		// duration msec
 	if(mDur > (newestTime - oldestTime)) mDur = newestTime - oldestTime;
 	
-//	var gotime = oldestTime + Number(percentTime) * (newestTime - oldestTime) / 100.;
-//	var gotime = oldestTime + percentTime * (newestTime - oldestTime - mDur) / 100.;
-	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		// gotime is left-edge plot
-	if(gotime < oldestTime) goTime = oldestTime;
-	if(gotime > (newestTime - mDur)) gotime = newestTime - mDur;
-//	var percentCalc = 100. * (gotime - oldestTime - mDur) / (newestTime - oldestTime - mDur);
-
+	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		
+//	if(gotime < oldestTime) goTime = oldestTime;
+//	if(gotime > (newestTime - mDur)) gotime = newestTime - mDur;
+	
+// try again, MJM 8/17/16, gotime is right-edge plot
+	if(gotime < (oldestTime+mDur)) goTime = oldestTime + mDur;
+	if(gotime > newestTime) gotime = newestTime;
 	
 	if(debug) console.debug("goTime: "+gotime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
 	refreshCollection(true,gotime,getDuration(),"absolute");	// go to derived absolute time
