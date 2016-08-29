@@ -88,7 +88,7 @@ var singleStep=false;				// set based on RTrate/View ratio
 var isImage=false;					// latest plot is image?
 var numCol=0;						// numcols per plot row (0=auto)
 var reScale=true;					// one shot rescale flag
-var rtmode=0;						// real-time mode flag
+var rtmode=1;						// real-time mode flag (rtmode==1 for latest play-RT MJM 8/24/16)
 var playStr="&gt;";					// ">" play mode
 
 top.rtflag=0;						// RT state (for eavesdroppers)
@@ -301,7 +301,8 @@ function configParams(src) {
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
 
 	// RT mode (one-shot param)
-	rtmode 	 	 = Number(getURLParam(src,'rt'));
+	var irtm  	 = getURLParam(src,'rt'); 	if(irtm!=null) rtmode=Number(irtm);
+	
 //	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
 	
 	for(var i=0; i<nplot; i++) {
@@ -758,7 +759,7 @@ function rtCollection(time) {
 
 		if(dfetch <= 0) return;		// nothing new
 		
-		if((tfetch>=newestTime||tfetch<oldestTime) && top.rtflag!=RT) {
+		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT && rtmode==0)) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
@@ -768,8 +769,7 @@ function rtCollection(time) {
 		
 		var now = new Date().getTime();
 
-		console.debug("singleStep: "+singleStep+", rtmode: "+rtmode);
-		if(singleStep && rtmode==0) {										// delayed-start so as not to pre-scroll too much
+		if(singleStep) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
 			singleStep = false;
 		}
@@ -781,10 +781,11 @@ function rtCollection(time) {
 				var param = plots[j].params[i];
 				if(endsWith(param,".jpg")) continue;
 				anyplots=true;	
-				if(rtmode==0)
-				fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
-				else
-				fetchData(plots[j].params[i], j, getDuration(), 0, "newest");		// newest data with possible overlap
+				
+				if(top.rtflag==RT && rtmode==2)
+					fetchData(plots[j].params[i], j, getDuration(), 0, "newest");		// newest data with possible overlap
+				else 
+					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 			}
 		}
 	
@@ -814,20 +815,20 @@ function rtCollection(time) {
 	intervalID2 = 
 		setInterval(
 			function() {
-				var ptime = playTime() + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
+				var ptime = playTime(); // + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
 //				if(ptime <= lastvideoTime) return;			// hasn't progressed enough to matter
 				anyvideo = false;
 				for(var j=0; j<plots.length; j++) {
 					if(plots[j].type != 'video') continue;		// non-video go 1/10 nominal rate
 					anyvideo = true;
 					if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastvideoTime);
-					if(rtmode==0)
-					fetchData(plots[j].params[0], j, 0, ptime, "absolute");			// RT->playback mode (gappy)
+					if(top.rtflag==RT && rtmode==2)
+						fetchData(plots[j].params[0], j, 0, 0, "newest");				// RT newest mode (overlap/inefficient)		
 					else
-					fetchData(plots[j].params[0], j, 0, 0, "newest");				// RT newest mode (overlap/inefficient)			
+						fetchData(plots[j].params[0], j, 0, ptime, "absolute");			// RT->playback mode (gappy)
 				}
 
-				if(!anyvideo || (ptime>=newestTime && top.rtflag!=RT)) {	
+				if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT && rtmode==0))) {	// keep rolling rtmode!=0
 					if(debug) console.log('no video, stopping monitor');
 					clearInterval(intervalID2);		// notta to do
 					intervalID2 = 0;
@@ -847,8 +848,9 @@ var NCOUNT=20;			// number of updates over which to average sumLag
 function playTime() {		// time at which to fetch (msec)
 	var now = new Date().getTime();
 	
-	if(top.rtflag != RT) {		// playback mode:  let system-clock drive pace relative to fixed offset
+	if(top.rtflag != RT || rtmode==1) {		// playback mode:  let system-clock drive pace relative to fixed offset
 		var ptime = now - playDelay;					// playFwd
+//		if(rtmode==1) ptime -= getDuration();		// FOO debug
 		if(debug) 
 			console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
 		return ptime;
@@ -1314,7 +1316,7 @@ function updatePauseDisplay(mode) {
 // 		document.getElementById('>').innerHTML = "||";
 		document.getElementById('play').innerHTML = playStr;
 	}
-	else if(mode==RT) 		document.getElementById('RT').checked=true;
+	else if(mode==RT && rtmode==0) 	document.getElementById('RT').checked=true;
 	else if(mode==PLAY) {
 //		document.getElementById('>').innerHTML = ">";
 		document.getElementById('play').innerHTML="||";
@@ -1326,7 +1328,7 @@ function updatePauseDisplay(mode) {
 
 function rePlay() {
 	var mode = PAUSE;
-	if(document.getElementById('RT').checked) mode = RT;
+	if(rtmode==0 && document.getElementById('RT').checked) mode = RT;
 	else if(document.getElementById('play').innerHTML=="||") mode = PLAY;
 
 	if(mode==PAUSE && !isImage && oldestTime > 0) {
@@ -1502,7 +1504,8 @@ function setTimeNoSlider(time) {
 //	var dstring = d.toUTCString();
 //	dstring = dstring.split(", ")[1];		// string leading "Day, "
 
-	var dstring = ("0"+(d.getDate()+1)).slice(-2) + " " + month[d.getMonth()] + " " + 
+//	var dstring = ("0"+(d.getDate()+1)).slice(-2) + " " + month[d.getMonth()] + " " + 
+	var dstring = ("0"+d.getDate()).slice(-2) + " " + month[d.getMonth()] + " " + 
     d.getFullYear() + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + ":" + ("0" + d.getSeconds()).slice(-2);
 	
 	var cb = document.getElementById('myDuration');
@@ -3334,6 +3337,11 @@ function vidscan(param) {
     				if(debug) console.log('Warning, xmlhttp.status: '+xmlhttp.status);
     				if	   (url.indexOf("r=next") != -1) paramTime[param] = 99999999999999;
     	    		else if(url.indexOf("r=prev") != -1) paramTime[param] = 0; 
+    				
+					else if((getTime() >= newestTime) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
+						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+getTime()+", newestTime: "+newestTime);
+						goPause();
+					}
 //    				if(top.rtflag==RT) adjustPlayDelay(100);    			// need?	
     				// following alert can be deadly lock-up loop on ipad:  add status field to display?
 //    				alert('Error on image fetch! '+url+', status: '+xmlhttp.status);

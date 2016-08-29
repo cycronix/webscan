@@ -43,9 +43,8 @@
 <div id="dcontrols">
 <table id="controls" class="a" align="center" border=1 height="100%">
 <tr>
-	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">"> <label id="play" for=">" onclick="togglePlay(this);">&gt;</label> </td> 
 	<td style="white-space: nowrap;"> <input type="radio" name="radios" id="|<"> <label for="|<"  onMouseDown="goBOF()"	>[</label> </td> 
-	<td width="75%">
+	<td width="80%">
 	<table align="center" width="100%">
 	<tr align="center">
 	<td style="white-space: nowrap; align="center" width="100%"><label class="t" id="timestamp">TimeStamp</></td>
@@ -56,7 +55,10 @@
 	</table>
 	</td>
 	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">|"> <label for=">|"  onMouseDown="goEOF()"	>]</label> </td> 
+	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">"> <label id="play" for=">" onclick="togglePlay(this);">&gt;</label> </td> 
+<!--
 	<td style="white-space: nowrap;"> <input type="radio" name="radios" id="RT"> <label for="RT"  onMouseDown="goRT()"	>RT</label> </td> 
+-->
 </tr>
 </table>
 </div>
@@ -65,7 +67,7 @@
 
 <div id="options"  border=1>
     <table class="o">
-    	<tr><td colspan=2 align="center">Webscan V3b4</td></tr>
+    	<tr><td colspan=2 align="center">Webscan V3b5</td></tr>
         <tr><td>Smooth</td><td><input id="smooth" type="checkbox" onclick="smoothCheck(this)"></td></tr>
         
         <tr><td>Fill</td><td><input id="fill" type="checkbox" onclick="fillCheck(this)"></td></tr>
