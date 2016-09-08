@@ -530,7 +530,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					var hdur = audioRequest.getResponseHeader("duration");		
 					if(hdur != null) 	hdur = 1000 * Number(hdur);				// sec -> msec
 					else			  	hdur = duration;
-					if(waveHdrLen > 0) hdur = 1000. * floats.length / estRate;	// msec
+// ??					if(waveHdrLen > 0) hdur = 1000. * floats.length / estRate;	// msec
 					
 					var holdest = audioRequest.getResponseHeader("oldest");		
 					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
@@ -1586,7 +1586,7 @@ function getLimits(forceFlagOld, forceFlagNew) {
 	
 	var iplot=0;		// find first plot with channel
 	for(iplot=0; iplot<nplot; iplot++) if(plots[iplot] && plots[iplot].params.length > 0) break;
-	if(debug) console.debug('getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]);
+	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]);
 
 	if(newestTime == 0 || newestTime < oldestTime || forceFlagNew) {
 		fetchData(plots[iplot].params[0], 0, 0, 0, "newest");
