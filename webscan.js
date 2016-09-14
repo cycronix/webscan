@@ -43,7 +43,7 @@ limitations under the License.
  * V2.0B10:	Better wild-point rejection scaling for "Tight" scaling
  * V2.0:	Same as V2.0B10, production release
  * V3b1:	Rework controls/UI, add playRvs
- * V3b2-4:	Streamline, responsive UI
+ * V3b2-5:	Streamline, responsive UI, improved RT 
  */
 
 //----------------------------------------------------------------------------------------	
@@ -413,6 +413,9 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	// audio with video: fetch as binary
 	var isAudio = ((endsWith(param, ".pcm") || endsWith(param, ".mp3") || endsWith(param, ".wav")));			// FFMPEG s16sle, or MP3 audio
 	
+	// text type data
+	var isText = endsWith(param, ".txt");
+	
 	if(!isImage && (refTime == "next" || refTime == "prev")) {				// no next/prev with stripcharts?
 		refTime = "absolute";
 	}
@@ -448,7 +451,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		return;
 	}
 		
-	if(isImage) {									
+	if(isImage || isText) {									
 		munge = "?dt=b";						// binary fetch
 		if(refTime) munge += ("&r="+refTime);
 //		munge+="&refresh="+(new Date().getTime());			// ensure nocache
@@ -471,8 +474,9 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
 	
 	if(isImage) plots[plotidx].display.setImage(url,param);
-	else {		
-		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
+	else {	
+		if(isText) 	AjaxGet(setParamText, url, arguments);
+		else 		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
 		inProgress++;
 		document.body.style.cursor = 'wait';
 	}
@@ -566,7 +570,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 				if(intervalID && singleStep) plots[plotidx].render(time);			// scroll plots if playing
 				
 				if(intervalID && audioRequest.status != 404) goPause();		// play thru gaps
-
+				setTime(time);				// move slider thru gaps
+				
 				inProgress=0;		// no deadlock
 				document.body.style.cursor = 'default';		// done with this fetch
 				if(intervalID) { 	//  no warn on shutdown
@@ -629,6 +634,7 @@ function setParamValue(text, url, args) {
 	var param = args[0];		// args passed thru == args of fetchData
 	var pidx = args[1];
 	var duration = args[2];
+	var reqtime = args[3];	
 	var refTime = args[4];
 	var now=new Date().getTime();
 	var time=now, value;
@@ -666,15 +672,43 @@ function setParamValue(text, url, args) {
 	if(nval > 0) {
 		lastgotTime = time;
 		if(refTime=="oldest") { setTime(time);	document.getElementById('TimeSelect').value=0; 	  oldestTime=oldgotTime; }	
-		if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  newestTime=newgotTime; }	
-		if(refTime=="next" || refTime=="prev") setTime(time);
+		else if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  newestTime=newgotTime; }	
+		else if(refTime=="next" || refTime=="prev") setTime(time);
 		else if(pidx == 0) setTime(time);			// only setTime for plot0
 //		setTime(time);		// always set it here?
-		
 		if(time > paramTime[param]) paramTime[param] = time;
 	}
+	else if(pidx == 0) setTime(reqtime);		// REQUEST time to move slider over gaps
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
+}
+
+//----------------------------------------------------------------------------------------
+//setParamValue:  set value on callback from Ajax 
+
+function setParamText(text, url, args, time) {
+	var param = args[0];		// args passed thru == args of fetchData
+	var pidx = args[1];
+	var duration = args[2];
+	var reqtime = args[3];	
+	var refTime = args[4];
+	
+	inProgress--;
+	if(inProgress < 0) inProgress=0;		// failsafe
+	if(inProgress == 0) document.body.style.cursor = 'default';
+
+	if(text.length > 0) {
+		plots[pidx].setText(text);
+		lastgotTime = time;
+		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	  oldestTime=time; }	
+		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  newestTime=time; }	
+		else if(refTime=="next" || refTime=="prev") setTime(time);
+		else if(pidx == 0) setTime(reqtime);	// only setTime for plot0
+		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
+	}
+	else if(pidx == 0) setTime(reqtime);		// REQUEST vs got time to force slider move
+	
+	else if(debug) console.log("setParamText NULL text, url: "+url);
 }
 
 //----------------------------------------------------------------------------------------
@@ -713,12 +747,14 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	
 	if(nval > 0) {
 		if(pidx==0) setTime(time);		// only set time for plot0
+
 //		setTime(time);			// always set it here?
 		lastgotTime = time;
 		if(time > paramTime[param]) paramTime[param] = time;
 		if(debug) console.debug("update lastgotTime: "+lastgotTime+", reqtime: "+reqtime+", duration: "+duration);
 	}
-	
+	else if(pidx==0) setTime(reqtime);	// REQUEST time to move slider
+
 	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
 }
 
@@ -759,7 +795,7 @@ function rtCollection(time) {
 
 		if(dfetch <= 0) return;		// nothing new
 		
-		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT && rtmode==0)) {		// keep rolling if rtmode!=0
+		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
@@ -779,7 +815,8 @@ function rtCollection(time) {
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-				if(endsWith(param,".jpg")) continue;
+//				if(endsWith(param,".jpg")) continue;
+				if(plots[j].type != 'stripchart') continue;
 				anyplots=true;	
 				
 				if(top.rtflag==RT && rtmode==2)
@@ -812,6 +849,51 @@ function rtCollection(time) {
 	
 	// ------------------------------ faster video updates:
 	// video RT
+	var prevgotTime = 0;
+	var slowdownCount = 0;
+	function doRTfast() {
+		if(intervalID2==0) return;		// fail-safe
+		
+		var ptime = playTime(); // + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
+//		if(ptime <= lastvideoTime) return;			// hasn't progressed enough to matter
+		anyvideo = false;
+		for(var j=0; j<plots.length; j++) {
+			if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
+
+			anyvideo = true;
+			if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastvideoTime);
+			if(top.rtflag==RT && rtmode==2)
+				fetchData(plots[j].params[0], j, 0, 0, "newest");				// RT newest mode (overlap/inefficient)		
+			else
+				fetchData(plots[j].params[0], j, 0, ptime, "absolute");			// RT->playback mode (gappy)
+		}
+
+		if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT))) {	// keep rolling if RT
+			if(debug) console.log('no video, stopping monitor');
+			clearTimeout(intervalID2);		// notta to do
+			intervalID2 = 0;
+			if(intervalID==0) goPause();
+		}
+		else {
+			if(lastgotTime > prevgotTime) {
+				prevgotTime = lastgotTime;
+				slowdownCount=0;
+				intervalID2 = setTimeout(doRTfast,tDelay/10);
+			} else {
+//				console.debug('slowdownCount: '+slowdownCount);
+				slowdownCount++;
+				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);			
+				else if(slowdownCount < 400)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// ease up if not getting data
+				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*10);	// ~10 min to ~2 hours
+				else {
+					intervalID2 = 0;
+					if(intervalID==0) goPause();	// stop if long-time no data
+				}
+			}
+		}
+	}
+	doRTfast();
+/*	
 	intervalID2 = 
 		setInterval(
 			function() {
@@ -819,7 +901,9 @@ function rtCollection(time) {
 //				if(ptime <= lastvideoTime) return;			// hasn't progressed enough to matter
 				anyvideo = false;
 				for(var j=0; j<plots.length; j++) {
-					if(plots[j].type != 'video') continue;		// non-video go 1/10 nominal rate
+//					if(plots[j].type != 'video') continue;		// non-video go 1/10 nominal rate
+					if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
+
 					anyvideo = true;
 					if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastvideoTime);
 					if(top.rtflag==RT && rtmode==2)
@@ -828,7 +912,9 @@ function rtCollection(time) {
 						fetchData(plots[j].params[0], j, 0, ptime, "absolute");			// RT->playback mode (gappy)
 				}
 
-				if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT && rtmode==0))) {	// keep rolling rtmode!=0
+//				if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT && rtmode==0))) {	// keep rolling rtmode!=0
+				if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT))) {	// keep rolling rtmode!=0
+
 					if(debug) console.log('no video, stopping monitor');
 					clearInterval(intervalID2);		// notta to do
 					intervalID2 = 0;
@@ -836,7 +922,7 @@ function rtCollection(time) {
 				}
 			}, 
 		tDelay/10);				// 10x rate
-
+*/
 }	
 
 //----------------------------------------------------------------------------------------
@@ -1090,7 +1176,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 function AjaxGet(myfunc, url, args) {
 	if(debug) console.log('AjaxGet: '+url);
 	var param = args[0];
-//	var pidx = args[1];
+	var pidx = args[1];
 	var duration = args[2];
 	var time = args[3];
 
@@ -1111,7 +1197,9 @@ function AjaxGet(myfunc, url, args) {
 						paramTime[param] = newestTime;		// for oldest-of-newest RT check
 				}
 				
-				myfunc(xmlhttp.responseText, url, args);
+				var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
+//				console.debug('url: '+url+', header time: '+htime+', argtime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
+				myfunc(xmlhttp.responseText, url, args, htime);			
 			}
 			else {		// ERROR Handling
 				if(debug) console.warn('Error on data fetch! '+url+', status: '+xmlhttp.status+", rtflag: "+top.rtflag);
@@ -1127,6 +1215,7 @@ function AjaxGet(myfunc, url, args) {
 						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime);
 						goPause();	
 					}
+					setTime(time);				// move slider thru gaps
 				}
 			}
 		}
@@ -1313,13 +1402,18 @@ function getPlayMode() {
 function updatePauseDisplay(mode) {
 	if(stepDir == -2) 		document.getElementById('<').checked=true;
 	else if(mode==PAUSE){
-// 		document.getElementById('>').innerHTML = "||";
 		document.getElementById('play').innerHTML = playStr;
+		document.getElementById('play').checked = true;
+		document.getElementById('RT').checked=false;
 	}
-	else if(mode==RT && rtmode==0) 	document.getElementById('RT').checked=true;
+	else if(mode==RT && rtmode==0) 	{
+		document.getElementById('RT').checked=true;
+		document.getElementById('play').checked = false;
+	}
 	else if(mode==PLAY) {
-//		document.getElementById('>').innerHTML = ">";
 		document.getElementById('play').innerHTML="||";
+		document.getElementById('play').checked = true;
+		document.getElementById('RT').checked=false;
 	}
 }
 
@@ -1348,7 +1442,8 @@ function rePlay() {
 function stopRT() {
 	if(debug) console.log("stopRT.");
 	if(intervalID != 0) clearInterval(intervalID);
-	if(intervalID2 != 0) clearInterval(intervalID2);
+//	if(intervalID2 != 0) clearInterval(intervalID2);
+	if(intervalID2 != 0) clearTimeout(intervalID2);
 	intervalID = intervalID2 = 0;
 	if(intervalID3 != 0) clearTimeout(intervalID3);		// turn off playRvs timer (only) here
 	intervalID3=0;
@@ -1586,7 +1681,7 @@ function getLimits(forceFlagOld, forceFlagNew) {
 	
 	var iplot=0;		// find first plot with channel
 	for(iplot=0; iplot<nplot; iplot++) if(plots[iplot] && plots[iplot].params.length > 0) break;
-	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]);
+	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]+", forceOld: "+forceFlagOld+', forceNew+', forceFlagNew);
 
 	if(newestTime == 0 || newestTime < oldestTime || forceFlagNew) {
 		fetchData(plots[iplot].params[0], 0, 0, 0, "newest");
@@ -1849,6 +1944,11 @@ var mouseClickX=0;
 
 function mouseDown(e) {
 //	console.log('mouseDown');
+	thisplot = mouseClickPlot(e);
+	thiswin = this;		// for mouseout
+
+	if(plots[thisplot].type == 'text') return;		// notta for text (yet)
+	
 	reScale = true;
 	e.preventDefault();		// stop scrolling
 	mouseIsMove=false;		// not yet
@@ -1870,17 +1970,15 @@ function mouseDown(e) {
 		rect1x = e.clientX;				
 		rect1y = e.offsetY;				
 	}
-	
-	startMoveTime = getTime();
-	this.addEventListener(moveEvent, mouseMove);
-	thiswin = this;		// for mouseout
-//	thiswin = e.window;		// for mouseout
 
-	thisplot = mouseClickPlot(e);
-	
+	startMoveTime = getTime();
+	if(plots[thisplot].type == 'stripchart')
+		this.addEventListener(moveEvent, mouseMove);
+
 	// mouse-step logic:
-	mouseIsStep = endsWith(plots[thisplot].params[0], ".jpg");
-	if(!mouseIsStep) return;		// step only for images
+//	mouseIsStep = endsWith(plots[thisplot].params[0], ".jpg");
+	mouseIsStep = (plots[thisplot].type == 'video');
+	if(!mouseIsStep) return;		// step only for non-video
 
 	var rect = e.target.getBoundingClientRect();
 	mouseClickX = rect1x / (rect.right - rect.left);
@@ -2224,6 +2322,7 @@ function goPause() {
 	reScale = true;
 	stepDir= 0;
 	setPlay(PAUSE,0);			// was ,-1
+	updatePauseDisplay(top.rtflag);
 }
 
 function goStepFwd() {	
@@ -2239,17 +2338,8 @@ function playFwd() {
 	goPause();
 	reScale = true;
 	getLimits(0,0);		// make sure limits are known...
-
-//	var dt = new Date().getTime() - getTime();
-//	console.log('dt: '+dt);
-//	if(Math.abs(dt) < 10000 || document.getElementById('RTlab').innerHTML=='RT') {
-	if(false) {			// turn off auto-RT for now...
-		goRT();		// auto-RT if close to EOF
-	} else {
-		stepDir= 2;		// this affects playTime() to use RT-playDelay to advance playback clock
-		setPlay(PLAY,getTime());
-		// starts charts with first-fetch = mdur followed by tDelay updates without restarting charts...
-	}
+	stepDir= 2;			// this affects playTime() to use RT-playDelay to advance playback clock
+	setPlay(PLAY,getTime());	
 }
 
 function togglePlay(el){
@@ -2279,10 +2369,6 @@ function goRT() {
 	stepDir=2;
 	if(debug) console.log("goRT!");
 	refreshCollection(false,0,getDuration(), "newest");
-
-//	getLimits(0,0);			// for RT playback
-//	goTime(100);
-//	setTimeout(function(){ goRT2(); }, 500);		// wait for limits update?
 }
 
 function goRT2() {
@@ -2777,6 +2863,7 @@ function plotbox() {
 		
 		if		(endsWith(param, ".jpg")) 							paramtype = 'video';
 //		else if	(endsWith(param,".mp3") || endsWith(param,".wav")) 	paramtype = 'audio';
+		else if (endsWith(param,"txt"))								paramtype = 'text';
 		else														paramtype = 'stripchart';
 		if(this.type == null) this.type = paramtype; 			// only set type on first param
 
@@ -2809,6 +2896,8 @@ function plotbox() {
 					return;
 				}
 				break;	
+			case 'text':
+				break;
 		}
 		this.params.push(param);
 	}
@@ -2893,6 +2982,23 @@ function plotbox() {
 		var colors = new Array('#0000ff','#ff0000','#00dd00','#880088','#000000','#808080');	// ~RGB
 		if(idx < colors.length) return colors[idx];
 		else					return colors[colors.length-1];
+	}
+	
+//  ----------------------------------------------------------------------------------------    
+	// setText: display text in plot box
+	this.setText = function(text) {
+		var ctx = this.canvas.getContext('2d');
+		ctx.font = "16px Arial";
+		ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image
+		
+		var lineHeight = 20;
+		var lineMargin = 20;
+		var y = lineHeight;
+		var lines = text.split('\n');
+		for(var n=0; n < lines.length; n++) {
+			ctx.fillText(lines[n], lineMargin, y);
+			y += lineHeight;
+		}
 	}
 }
 
@@ -3038,29 +3144,6 @@ function audioscan() {
 	
 }
 
-/*
-var audioNode = audioContext.createJavaScriptNode(4096, 1, 1);
-
-audioNode.onaudioprocess = function(event) {
-                           if (decodedAudioBuffer.length >= bufferSize) {
-                                  var decoded = decodedAudioBuffer.splice(0, bufferSize);
-                                  var samples = new Float32Array(bufferSize);
-                                  for (var i=0; i<decoded.length; i++) {
-                                         samples[i] = decoded[i];
-                                  }
-
-                                  samples = resampler.resample(samples);
-                                  var output = event.outputBuffer.getChannelData(0);
-                                    for (var i = 0; i < output.length; i++) {
-                                      output[i] = samples[i];
-                                    }
-
-                           }
-};
-
-audioNode.connect(audioContext.destination);
-*/
-
 //----------------------------------------------------------------------------------------	
 /**
  * VidScan
@@ -3085,12 +3168,6 @@ function vidscan(param) {
 	Tnew=0;
 	Told=0;
 	this.canvas=null;
-//	this.img=new Image();
-//	this.img.onload = imgload.bind(this);
-//	this.img.onerror = imgerror.bind(this);
-	
-//    getTlimit("/CT/"+param);			// initialize time limits
-//    getTlimit(serverAddr+servletRoot+"/"+param);			// initialize time limits
 
 //  ----------------------------------------------------------------------------------------    
 //  addCanvas:  set canvas object
@@ -3135,7 +3212,6 @@ function vidscan(param) {
     	img=new Image();							// make new Image every time to avoid onload bug?
     	img.canvas = this.canvas;
 //    	if(img.canvas == null) console.debug("OOPS, setImage without canvas!!!");
-
 //    	this.img.onload = imgload.bind(this);
 
     	img.onload = function() {		// draw on image load (new function with new image)
@@ -3171,7 +3247,7 @@ function vidscan(param) {
 			this.AjaxGetImage(imgurl,img,param);				// get image and timestamp one-step (from header)
 		}
     }
-
+    
 //  ----------------------------------------------------------------------------------------    
 
     this.getTold = function() { return Told; }
