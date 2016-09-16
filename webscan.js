@@ -882,9 +882,10 @@ function rtCollection(time) {
 				intervalID2 = setTimeout(doRTfast,tDelay/10);
 			} else {
 //				console.debug('slowdownCount: '+slowdownCount);
-				slowdownCount++;
-				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);			
-				else if(slowdownCount < 400)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// ease up if not getting data
+				slowdownCount++;				// ease up if not getting data
+				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);	// <10s, keep going fast
+				else if(slowdownCount < 50)		intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
+				else if(slowdownCount < 400)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// 1min to ~10min
 				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*5);	// ~10 min to ~2 hours
 				else {
 					intervalID2 = 0;
