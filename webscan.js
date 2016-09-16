@@ -884,9 +884,9 @@ function rtCollection(time) {
 //				console.debug('slowdownCount: '+slowdownCount);
 				slowdownCount++;				// ease up if not getting data
 				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);	// <10s, keep going fast
-				else if(slowdownCount < 50)		intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
-				else if(slowdownCount < 400)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// 1min to ~10min
-				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*5);	// ~10 min to ~2 hours
+				else if(slowdownCount < 150)	intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
+				else if(slowdownCount < 740)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// 1min to ~10min
+				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*5);	// 10 min to ~2 hours
 				else {
 					intervalID2 = 0;
 					if(intervalID==0) goPause();	// stop if long-time no data
