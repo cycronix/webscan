@@ -2995,7 +2995,9 @@ function plotbox() {
 		var lineMargin = 20;
 		var y = lineHeight;
 		var lines = text.split('\n');
-		for(var n=0; n < lines.length; n++) {
+		var firstLine = lines.length - Math.ceil((this.canvas.height-20) / lineHeight);	// drop old lines
+		if(firstLine < 0) firstLine = 0;
+		for(var n=firstLine; n < lines.length; n++) {
 			ctx.fillText(lines[n], lineMargin, y);
 			y += lineHeight;
 		}
