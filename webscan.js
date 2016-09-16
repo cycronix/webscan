@@ -875,6 +875,7 @@ function rtCollection(time) {
 			if(intervalID==0) goPause();
 		}
 		else {
+			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastgotTime > prevgotTime) {
 				prevgotTime = lastgotTime;
 				slowdownCount=0;
@@ -884,7 +885,7 @@ function rtCollection(time) {
 				slowdownCount++;
 				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);			
 				else if(slowdownCount < 400)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// ease up if not getting data
-				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*10);	// ~10 min to ~2 hours
+				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*5);	// ~10 min to ~2 hours
 				else {
 					intervalID2 = 0;
 					if(intervalID==0) goPause();	// stop if long-time no data
