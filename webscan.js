@@ -772,11 +772,15 @@ function rtCollection(time) {
 	playStart = time;
 	if(time != 0 && top.rtflag != RT) 
 			playDelay = (new Date().getTime() - time);		// playback mode
-	else 	playDelay = 0.;
+//	else 	playDelay = 0.;
+	else 	playDelay = (new Date().getTime() - newestTime);
 
 	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
 	
 	// stripchart fetch data on interval
+	var prevgotTime = 0;
+	var prevnewestTime = newestTime;
+
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
 		var anyplots=false;
@@ -803,7 +807,7 @@ function rtCollection(time) {
 			return;
 		}
 		
-		var now = new Date().getTime();
+//		var now = new Date().getTime();
 
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
@@ -815,17 +819,29 @@ function rtCollection(time) {
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-//				if(endsWith(param,".jpg")) continue;
-				if(plots[j].type != 'stripchart') continue;
+				if(endsWith(param,".jpg")) continue;
+				if(debug) console.debug("doRT, plots["+j+"].type: "+plots[j].type+", param["+i+"]: "+plots[j].params[i]);
+//				if(plots[j].type != 'stripchart') continue;		// can have audio param on video plot
 				anyplots=true;	
 				
-				if(top.rtflag==RT && rtmode==2)
+				console.debug('tfetch: '+tfetch+', t+d: '+(tfetch+dfetch)+', tright: '+tright+', newestTime: '+newestTime+', prevnewtime: '+prevnewestTime);
+				if(top.rtflag==RT && tright > newestTime) {
+//					console.debug('fetch newest!');
 					fetchData(plots[j].params[i], j, getDuration(), 0, "newest");		// newest data with possible overlap
-				else 
+				} else { 
+//					console.debug('fetch abs, tfetch: '+tfetch+', dfetch: '+dfetch);
 					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
+				}
 			}
 		}
-	
+		
+		if(top.rtflag==RT && newestTime > prevnewestTime) {			// newest data update
+			if(intervalID2==0) 		// let video pace
+				playDelay = new Date().getTime() - prevnewestTime;		// adjust to play fwd from prior newest time
+//			playDelay = newestTime - prevnewestTime;		// adjust to play fwd from prior newest time
+			prevnewestTime = newestTime;
+		}
+		
 		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag);
 		if(!anyplots) {
 			if(debug) console.log('no stripcharts, stopping monitor');
@@ -834,6 +850,7 @@ function rtCollection(time) {
 			if(intervalID2==0) goPause();
 			return;
 		}	
+		prevgotTime = lastgotTime;		// for newest/absolute mode request check
 	}
 
 	mDur = getDuration();
@@ -849,7 +866,7 @@ function rtCollection(time) {
 	
 	// ------------------------------ faster video updates:
 	// video RT
-	var prevgotTime = 0;
+	var prevvideoTime = 0;
 	var slowdownCount = 0;
 	function doRTfast() {
 		if(intervalID2==0) return;		// fail-safe
@@ -862,12 +879,20 @@ function rtCollection(time) {
 
 			anyvideo = true;
 			if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastvideoTime);
-			if(top.rtflag==RT && rtmode==2)
-				fetchData(plots[j].params[0], j, 0, 0, "newest");				// RT newest mode (overlap/inefficient)		
-			else
-				fetchData(plots[j].params[0], j, 0, ptime, "absolute");			// RT->playback mode (gappy)
+			if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
+//				console.debug('RT fetch newest, slowdownCount: '+slowdownCount);
+				fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
+			} else {
+//				console.debug('RT fetch absolute, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
+				fetchData(plots[j].params[0], j, 0, ptime, "absolute");		// RT->playback mode (gappy)
+			}
 		}
 
+		if(top.rtflag==RT && newestTime > prevnewestTime) {			// newest data update (won't update with webturbine?)
+			playDelay = new Date().getTime() - prevnewestTime;		// adjust to play fwd from prior newest time
+			prevnewestTime = newestTime;
+		}
+		
 		if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT))) {	// keep rolling if RT
 			if(debug) console.log('no video, stopping monitor');
 			clearTimeout(intervalID2);		// notta to do
@@ -876,12 +901,12 @@ function rtCollection(time) {
 		}
 		else {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
-			if(lastgotTime > prevgotTime) {
-				prevgotTime = lastgotTime;
+			if(lastvideoTime > prevvideoTime) {
+				prevvideoTime = lastvideoTime;
 				slowdownCount=0;
 				intervalID2 = setTimeout(doRTfast,tDelay/10);
 			} else {
-//				console.debug('slowdownCount: '+slowdownCount);
+				if(debug) console.debug('slowdownCount: '+slowdownCount+', lastvideoTime: '+lastvideoTime);
 				slowdownCount++;				// ease up if not getting data
 				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);	// <10s, keep going fast
 				else if(slowdownCount < 150)	intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
@@ -936,13 +961,14 @@ var NCOUNT=20;			// number of updates over which to average sumLag
 function playTime() {		// time at which to fetch (msec)
 	var now = new Date().getTime();
 	
-	if(top.rtflag != RT || rtmode==1) {		// playback mode:  let system-clock drive pace relative to fixed offset
+//	if(top.rtflag != RT || rtmode==1) {		// playback mode:  let system-clock drive pace relative to fixed offset
 		var ptime = now - playDelay;					// playFwd
 //		if(rtmode==1) ptime -= getDuration();		// FOO debug
 		if(debug) 
 			console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
 		return ptime;
-	} else {
+//	} else {
+/*		
 		if(debug) 
 			console.debug('RT playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
 
@@ -983,7 +1009,7 @@ function playTime() {		// time at which to fetch (msec)
 
 		return (now - playDelay);						// play RT driven forward by now-clock less some lag
 	}
-
+*/
 }
 
 var oldDuration = 0;
@@ -1406,16 +1432,16 @@ function updatePauseDisplay(mode) {
 	else if(mode==PAUSE){
 		document.getElementById('play').innerHTML = playStr;
 		document.getElementById('play').checked = true;
-		document.getElementById('RT').checked=false;
+		if(document.getElementById('RT')) document.getElementById('RT').checked=false;
 	}
 	else if(mode==RT && rtmode==0) 	{
-		document.getElementById('RT').checked=true;
+		if(document.getElementById('RT')) document.getElementById('RT').checked=true;
 		document.getElementById('play').checked = false;
 	}
 	else if(mode==PLAY) {
 		document.getElementById('play').innerHTML="||";
 		document.getElementById('play').checked = true;
-		document.getElementById('RT').checked=false;
+		if(document.getElementById('RT')) document.getElementById('RT').checked=false;
 	}
 }
 
@@ -1424,7 +1450,7 @@ function updatePauseDisplay(mode) {
 
 function rePlay() {
 	var mode = PAUSE;
-	if(rtmode==0 && document.getElementById('RT').checked) mode = RT;
+	if(rtmode==0 && document.getElementById('RT') && document.getElementById('RT').checked) mode = RT;
 	else if(document.getElementById('play').innerHTML=="||") mode = PLAY;
 
 	if(mode==PAUSE && !isImage && oldestTime > 0) {
@@ -2350,8 +2376,11 @@ function togglePlay(el){
 		goPause(); 
 	}
 	else { 
+		if(document.getElementById('play').innerHTML == 'RT') 
+				goRT();
+		else 	playFwd(); 
+		
 		el.innerHTML='||'; 	
-		playFwd(); 
 	}
 	return false;
 }
@@ -2362,6 +2391,8 @@ function goEOF() {
 	stepDir= 1;
 	if(debug) console.log("goEOF");
 	refreshCollection(true,0,getDuration(),"newest");
+	document.getElementById('play').innerHTML = 'RT';
+
 //	document.getElementById('RTlab').innerHTML = 'RT';
 //	timeOut = setTimeout( function(){ if(isPause()) document.getElementById('RTlab').innerHTML = '>'; },10000); 
 }
@@ -3418,7 +3449,7 @@ function vidscan(param) {
     				if	   (url.indexOf("r=next") != -1) paramTime[param] = 99999999999999;
     	    		else if(url.indexOf("r=prev") != -1) paramTime[param] = 0; 
     				
-					else if((getTime() >= newestTime) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
+					else if((getTime() >= newestTime && top.rtflag!=RT) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
 						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+getTime()+", newestTime: "+newestTime);
 						goPause();
 					}
