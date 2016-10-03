@@ -76,7 +76,7 @@ var inProgress=0;
 //var plotTime=0;						// master plot display time
 var lastreqTime=0;					// right edge most recent request time
 var lastgotTime=0;					// right edge (newest) time
-var lastvideoTime=0;				// most recent fetched video time
+var lastmediaTime=0;				// most recent fetched video time
 var oldgotTime=0;					// left edge (oldest) time
 var oldestTime=0;					// oldest available time (refTime="oldest")
 var newgotTime=0;					// right edge (newest) time
@@ -478,7 +478,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		if(isText) 	AjaxGet(setParamText, url, arguments);
 		else 		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
 		inProgress++;
-		document.body.style.cursor = 'wait';
+//		document.body.style.cursor = 'wait';
 	}
 }
 
@@ -573,7 +573,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 				setTime(time);				// move slider thru gaps
 				
 				inProgress=0;		// no deadlock
-				document.body.style.cursor = 'default';		// done with this fetch
+//				document.body.style.cursor = 'default';		// done with this fetch
 				if(intervalID) { 	//  no warn on shutdown
 					if(top.rtflag==RT) return;
 					else if(((time+duration) >= newestTime) || (audioRequest.status != 410 && audioRequest.status != 404)) {				// keep going (over gaps)
@@ -667,7 +667,7 @@ function setParamValue(text, url, args) {
 		else				plots[pidx].render(0);					// use last point got
 	} 
 
-	if(inProgress == 0) document.body.style.cursor = 'default';
+//	if(inProgress == 0) document.body.style.cursor = 'default';
 
 	if(nval > 0) {
 		lastgotTime = time;
@@ -695,11 +695,11 @@ function setParamText(text, url, args, time) {
 	
 	inProgress--;
 	if(inProgress < 0) inProgress=0;		// failsafe
-	if(inProgress == 0) document.body.style.cursor = 'default';
+//	if(inProgress == 0) document.body.style.cursor = 'default';
 
 	if(text.length > 0) {
 		plots[pidx].setText(text);
-		lastgotTime = time;
+		lastmediaTime = time;			// text is considered media (fastRT fetch)
 		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	  oldestTime=time; }	
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  newestTime=time; }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
@@ -738,7 +738,7 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	inProgress--;
 
 	if(inProgress < 0) inProgress=0;		// failsafe
-	if(inProgress == 0) document.body.style.cursor = 'default';
+//	if(inProgress == 0) document.body.style.cursor = 'default';
 	
 //	if((nval > 0) && (refTime!="absolute")) {
 //		setTimeNoSlider(time);
@@ -819,12 +819,12 @@ function rtCollection(time) {
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-				if(endsWith(param,".jpg")) continue;
+				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 				if(debug) console.debug("doRT, plots["+j+"].type: "+plots[j].type+", param["+i+"]: "+plots[j].params[i]);
 //				if(plots[j].type != 'stripchart') continue;		// can have audio param on video plot
 				anyplots=true;	
 				
-				console.debug('tfetch: '+tfetch+', t+d: '+(tfetch+dfetch)+', tright: '+tright+', newestTime: '+newestTime+', prevnewtime: '+prevnewestTime);
+//				console.debug('tfetch: '+tfetch+', t+d: '+(tfetch+dfetch)+', tright: '+tright+', newestTime: '+newestTime+', prevnewtime: '+prevnewestTime);
 				if(top.rtflag==RT && tright > newestTime) {
 //					console.debug('fetch newest!');
 					fetchData(plots[j].params[i], j, getDuration(), 0, "newest");		// newest data with possible overlap
@@ -866,7 +866,7 @@ function rtCollection(time) {
 	
 	// ------------------------------ faster video updates:
 	// video RT
-	var prevvideoTime = 0;
+	var prevmediaTime = 0;
 	var slowdownCount = 0;
 	function doRTfast() {
 		if(intervalID2==0) return;		// fail-safe
@@ -878,7 +878,7 @@ function rtCollection(time) {
 			if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
 
 			anyvideo = true;
-			if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastvideoTime);
+			if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
 			if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
 //				console.debug('RT fetch newest, slowdownCount: '+slowdownCount);
 				fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
@@ -901,12 +901,12 @@ function rtCollection(time) {
 		}
 		else {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
-			if(lastvideoTime > prevvideoTime) {
-				prevvideoTime = lastvideoTime;
+			if(lastmediaTime > prevmediaTime) {
+				prevmediaTime = lastmediaTime;
 				slowdownCount=0;
 				intervalID2 = setTimeout(doRTfast,tDelay/10);
 			} else {
-				if(debug) console.debug('slowdownCount: '+slowdownCount+', lastvideoTime: '+lastvideoTime);
+				if(debug) console.debug('slowdownCount: '+slowdownCount+', lastvideoTime: '+lastmediaTime);
 				slowdownCount++;				// ease up if not getting data
 				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);	// <10s, keep going fast
 				else if(slowdownCount < 150)	intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
@@ -1193,7 +1193,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //		setPause(false,getTime());			// loses data on plot.start?
 	}
 
-	document.body.style.cursor = 'default';
+//	document.body.style.cursor = 'default';
 	refreshInProgress=false;
 	resetMode=false;
 }
@@ -1211,6 +1211,8 @@ function AjaxGet(myfunc, url, args) {
 	var xmlhttp=new XMLHttpRequest();
 
 	xmlhttp.onreadystatechange=function() {
+    	fetchActive(false);
+
 		if (xmlhttp.readyState==4) {
 			if(xmlhttp.status==200) {
 				if(debug) console.log("xmlhttp got: "+url);
@@ -1233,7 +1235,7 @@ function AjaxGet(myfunc, url, args) {
 				if(debug) console.warn('Error on data fetch! '+url+', status: '+xmlhttp.status+", rtflag: "+top.rtflag);
 
 				inProgress=0;		// no deadlock
-				document.body.style.cursor = 'default';		// done with this fetch
+//				document.body.style.cursor = 'default';		// done with this fetch
 //				console.log('Error: '+url);
 //				if(top.rtflag!=RT)	goPause();			// stop if playback mode?
 				if(intervalID) { 	//  no warn on shutdown
@@ -1250,6 +1252,7 @@ function AjaxGet(myfunc, url, args) {
 	};
 	xmlhttp.open("GET",url,true);
 	xmlhttp.onerror = function() { goPause(); alert('xmlhttp error'); };
+	fetchActive(true);
 	xmlhttp.send();
 }
 
@@ -1408,7 +1411,7 @@ function setPlay(mode, time) {
 	if(mode==PAUSE) {				// stop RT
 		stopRT();
 		inProgress=0;			// make sure not spinning
-		document.body.style.cursor = 'default';		
+//		document.body.style.cursor = 'default';		
 		document.getElementById('play').innerHTML = playStr;
 		setDivSize();			// resize divs on pause
 	}
@@ -1428,6 +1431,8 @@ function getPlayMode() {
 }
 
 function updatePauseDisplay(mode) {
+	fetchActive(false);
+
 	if(stepDir == -2) 		document.getElementById('<').checked=true;
 	else if(mode==PAUSE){
 		document.getElementById('play').innerHTML = playStr;
@@ -1573,6 +1578,20 @@ function resetParams() {
 		tDelay = parseFloat(update.options[update.selectedIndex].value);
 	}
 //	runstopUpdate();
+}
+
+//----------------------------------------------------------------------------------------
+// show status of data-fetch
+
+function fetchActive(status) {
+//	console.debug('fetchActive: '+status);
+	if(status) 	{
+		document.getElementById("timestamp").style.color = "red";
+		document.body.style.cursor = 'wait';
+	} else {
+		document.body.style.cursor = 'default';
+		document.getElementById("timestamp").style.color = "white";
+	}
 }
 
 //----------------------------------------------------------------------------------------
@@ -1745,6 +1764,8 @@ function AjaxGetParamTime(param) {
 	
 	xmlhttp.onreadystatechange=function() {
 		if (xmlhttp.readyState==4) {
+	    	fetchActive(false);
+
 			if(xmlhttp.status==200) {
 				paramTime[param] = 1000* Number(xmlhttp.responseText);		// msec
 				if(debug) console.debug("AjaxGetParamTime, param: "+param+", time: "+paramTime[param]);
@@ -1757,6 +1778,7 @@ function AjaxGetParamTime(param) {
 	};
 //	console.debug("AjaxGetParamTime: "+url);
 	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
+	fetchActive(true);
 	xmlhttp.send();
 }
 
@@ -3338,7 +3360,7 @@ function vidscan(param) {
 //    		setTimeNoSlider(stime);
     		setTime(stime);
     		paramTime[param] = stime;
-    		lastvideoTime = stime;
+    		lastmediaTime = stime;
     	}
     }
 
@@ -3349,6 +3371,8 @@ function vidscan(param) {
     	var xmlhttp=new XMLHttpRequest();
 
     	xmlhttp.onreadystatechange=function() {
+        	fetchActive(false);
+
     		if (xmlhttp.readyState==4) {
     			if(xmlhttp.status==200) {
     				myfunc(xmlhttp.responseText, url, args);
@@ -3365,6 +3389,7 @@ function vidscan(param) {
     	};
 //    	console.debug('AjaxGetV: '+url);
     	xmlhttp.open("GET",url,true);
+    	fetchActive(true);
     	xmlhttp.send();
     }
 
@@ -3383,6 +3408,8 @@ function vidscan(param) {
     	var xmlhttp=new XMLHttpRequest();
     	
     	xmlhttp.onreadystatechange=function() {
+        	fetchActive(false);
+
     		if (xmlhttp.readyState==4) {
 //    			console.log("Ajax readstatechange: "+xmlhttp.readyState);
     			
@@ -3433,7 +3460,7 @@ function vidscan(param) {
         		    	if(debug) console.debug('AjaxGetImage, header Time: '+T);
 //        		    	if(debug) console.debug("param: "+param+", plots[0].params[0]: "+plots[0].params[0]);
         		    	if(param==plots[0].params[0]) setTime(T);		// ??
-        		    	lastvideoTime = T;
+        		    	lastmediaTime = T;
 //        	    		setTimeNoSlider(T);
         	    		if(hnewest == null || top.rtflag!=RT) paramTime[param] = T;
     		    	}
@@ -3461,8 +3488,11 @@ function vidscan(param) {
     	}
     	xmlhttp.open("GET",url,true);
     	xmlhttp.responseType = 'blob';
+    	fetchActive(true);
     	xmlhttp.send();
 //    	nreq++;
     }
 }
+
+
 
