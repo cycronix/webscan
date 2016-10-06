@@ -678,11 +678,11 @@ function setParamValue(text, url, args) {
 		if(refTime=="oldest") { setTime(time);	document.getElementById('TimeSelect').value=0; 	  oldestTime=oldgotTime; }	
 		else if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  newestTime=newgotTime; }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-		else if(pidx == 0) setTime(time);			// only setTime for plot0
+		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
 //		setTime(time);		// always set it here?
 		if(time > paramTime[param]) paramTime[param] = time;
 	}
-	else if(pidx == 0) setTime(reqtime);		// REQUEST time to move slider over gaps
+	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
 }
@@ -707,10 +707,10 @@ function setParamText(text, url, args, time) {
 		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	  oldestTime=time; }	
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  newestTime=time; }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-		else if(pidx == 0) setTime(reqtime);	// only setTime for plot0
+		else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);	// only setTime for plot0
 		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
 	}
-	else if(pidx == 0) setTime(reqtime);		// REQUEST vs got time to force slider move
+	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
 	
 	else if(debug) console.log("setParamText NULL text, url: "+url);
 }
@@ -750,7 +750,8 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 //	}
 	
 	if(nval > 0) {
-		if(pidx==0) setTime(time);		// only set time for plot0
+		var plot0=0;
+		if(pidx==0 || plots[0].params.length==0) setTime(time);		// only set time for plot0
 
 //		setTime(time);			// always set it here?
 		lastgotTime = time;
@@ -827,19 +828,22 @@ function rtCollection(time) {
 				anyplots=true;	
 				
 				if(debug) console.debug('playDelay: '+playDelay+', tright: '+tright+', newestTime: '+newestTime+', paramTime: '+paramTime[param]+', param: '+param);
-				if(!paramTime[param]) paramTime[param] = newestTime;		// failsafe
-				if(top.rtflag==RT && tright > paramTime[param]) {			// try newest request if get ahead of newest
-					AjaxGetParamTime(param);
-					playDelay = new Date().getTime() - paramTime[param];	// increase playDelay if getting ahead
-					if(debug) console.debug('New PLAYDELAY: '+playDelay);
-				} else { 
+				if(top.rtflag==RT) {
+					if(!paramTime[param]) paramTime[param] = newestTime;		// failsafe
+					if(tright > paramTime[param]) {			// try newest request if get ahead of newest
+						AjaxGetParamTime(param);
+						playDelay = new Date().getTime() - paramTime[param];	// increase playDelay if getting ahead
+						if(debug) console.debug('New PLAYDELAY: '+playDelay);
+					}
+				} 
+//				else { 
 //					console.debug('fetch abs, tfetch: '+tfetch+', dfetch: '+dfetch);
 					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
-				}
+//				}
 			}
 		}
 
-		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag);
+		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag+', intervalID2: '+intervalID2);
 		if(!anyplots) {
 			if(debug) console.log('no stripcharts, stopping monitor');
 			clearInterval(intervalID);		// notta to do
@@ -890,7 +894,7 @@ function rtCollection(time) {
 				// increase playDelay if getting ahead
 				playDelay = new Date().getTime() - paramTime[param];
 //				if(playDelay > 10*tDelay) playDelay = 0;			// if too much delay, refetch("newest")
-				if(debug) console.debug('New PLAYDELAY: '+playDelay+', adjust: '+adjust);
+				if(debug) console.debug('New PLAYDELAY: '+playDelay);
 			} else {
 				if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+paramTime[param]);
 				if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
