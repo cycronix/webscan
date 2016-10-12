@@ -822,7 +822,9 @@ function rtCollection(time) {
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-
+				if(i>0) plots[j].display.setLayer(true);			// cludge for image layers
+				else	plots[j].display.setLayer(false);
+				
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 //				if(plots[j].type != 'stripchart') continue;		// can have audio param on video plot
 				anyplots=true;	
@@ -878,27 +880,30 @@ function rtCollection(time) {
 //		if(ptime <= lastvideoTime) return;			// hasn't progressed enough to matter
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
-			var param = plots[j].params[0];
-			if(!param) continue;
-			if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
+			for(var i=0; i<plots[j].params.length; i++) {
+				var param = plots[j].params[i];
+//				var param = plots[j].params[0];
+				if(!param) continue;
+				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
 
-			anyvideo = true;
-			if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
-//			if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
-			if(top.rtflag==RT && ptime > paramTime[param]) {					// try newest request if get ahead of newest
+				anyvideo = true;
+				if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
+//				if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
+				if(top.rtflag==RT && ptime > paramTime[param]) {					// try newest request if get ahead of newest
 
-				if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
-//				fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
-				AjaxGetParamTime(param);			// just get newest time without displaying data
-				
-				// increase playDelay if getting ahead
-				playDelay = new Date().getTime() - paramTime[param];
-//				if(playDelay > 10*tDelay) playDelay = 0;			// if too much delay, refetch("newest")
-				if(debug) console.debug('New PLAYDELAY: '+playDelay);
-			} else {
-				if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+paramTime[param]);
-				if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
-				else						fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
+					if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
+//					fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
+					AjaxGetParamTime(param);			// just get newest time without displaying data
+
+					// increase playDelay if getting ahead
+					playDelay = new Date().getTime() - paramTime[param];
+//					if(playDelay > 10*tDelay) playDelay = 0;			// if too much delay, refetch("newest")
+					if(debug) console.debug('New PLAYDELAY: '+playDelay);
+				} else {
+					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+paramTime[param]);
+					if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
+					else						fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
+				}
 			}
 		}
 		
@@ -2919,7 +2924,7 @@ function plotbox() {
 				break;
 			case 'video':
 //				if(this.display == null) this.display = new vidscan(param);	
-				if(paramtype == 'video') this.params.length=0;			// only one vid per plot
+//				if(paramtype == 'video') this.params.length=0;			// only one vid per plot?
 				this.display = new vidscan(param);	
 				/*
 				else if(paramtype == 'video') {		// presume a stripchart added to video is audio
@@ -3204,12 +3209,18 @@ function audioscan() {
 function vidscan(param) {
 //	console.log('new vidscan: '+param);
 	this.videoInProgress = 0;
-	
+	this.addLayer=false;
 // globals
 	Tnew=0;
 	Told=0;
 	this.canvas=null;
+	
+//  ----------------------------------------------------------------------------------------    
 
+	this.setLayer = function(slayer) {
+		this.addLayer = slayer;
+	}
+	
 //  ----------------------------------------------------------------------------------------    
 //  addCanvas:  set canvas object
 
@@ -3252,6 +3263,7 @@ function vidscan(param) {
 		this.videoInProgress++;
     	img=new Image();							// make new Image every time to avoid onload bug?
     	img.canvas = this.canvas;
+    	img.addLayer = this.addLayer;
 //    	if(img.canvas == null) console.debug("OOPS, setImage without canvas!!!");
 //    	this.img.onload = imgload.bind(this);
 
@@ -3274,7 +3286,10 @@ function vidscan(param) {
     		}
 
     		var ctx = this.canvas.getContext('2d');
-    		ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image
+//    		console.debug('firstImage: '+firstImage+', param: '+param+', this.addLayer: '+this.addLayer);
+    		if(!this.addLayer) 		// this should be done with multiple canvas "layers"
+    				ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image
+    		else	ctx.globalAlpha = 0.5;		
     		ctx.drawImage(this,x,y,w,h);
     	}
     	img.onerror = imgerror.bind(this);
