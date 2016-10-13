@@ -43,7 +43,7 @@ limitations under the License.
  * V2.0B10:	Better wild-point rejection scaling for "Tight" scaling
  * V2.0:	Same as V2.0B10, production release
  * V3b1:	Rework controls/UI, add playRvs
- * V3b2-5:	Streamline, responsive UI, improved RT 
+ * V3b2-6:	Streamline, responsive UI, improved RT, image layers
  */
 
 //----------------------------------------------------------------------------------------	
@@ -51,11 +51,12 @@ limitations under the License.
 var myName="webscan";
 //var servletRoot="/CT";			// "CT" works only for CTserver	
 var servletRoot="/RBNB";			// "/RBNB" or "/CT" ("RBNB" works for both CTserver and WebTurbine)
-var serverAddr="";			// cross domain server...
+var serverAddr="";					// cross domain server...
 //var serverAddr="";				// "" for local access
 
 var tDelay=1000;					// initial data fetch interval (msec)
 var doRate=true;					// set true to support UI rate selection
+var maxLayer=4;						// max number of image layers
 
 var debug=false;					// turn on some console.log prints
 //var extraFetch=0.;
@@ -472,9 +473,11 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 
 
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
-	
-	if(isImage) plots[plotidx].display.setImage(url,param);
-	else {	
+
+	if(isImage) {
+//		var alpha = (param == plots[plotidx].params[0]) ? 1: 0.5;
+		plots[plotidx].display.setImage(url,param,plots[plotidx].params.indexOf(param));
+	} else {	
 		if(isText) 	AjaxGet(setParamText, url, arguments);
 		else 		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
 		inProgress++;
@@ -822,8 +825,6 @@ function rtCollection(time) {
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-				if(i>0) plots[j].display.setLayer(true);			// cludge for image layers
-				else	plots[j].display.setLayer(false);
 				
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 //				if(plots[j].type != 'stripchart') continue;		// can have audio param on video plot
@@ -1090,7 +1091,7 @@ function stepCollection(iplot, time, refdir) {
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
 //	console.debug('stepCollection, url: '+url+', idx: '+idx+', iplot: '+iplot);
-	plots[iplot].display.setImage(url,param);
+	plots[iplot].display.setImage(url,param,0);
 	
 //	refreshCollection(true, getTime(), getDuration(), refdir);	
 }
@@ -1894,26 +1895,33 @@ function buildCharts() {
 			// create a canvas for each plot box
 			prow = plotTable.insertRow(1);
 			var pcell1 = prow.insertCell(0); 
+//			var pdiv1 = document.createElement('div');
+//			pcell1.appendChild(pdiv1);					// ??
+			
+			var canvas = new Array();			// MJM 10/12/16
+			for(i=0; i<maxLayer; i++) {
+				canvas.push(document.createElement('canvas'));
+//				var canvas = document.createElement('canvas');
+				canvas[i].innerHTML = emsg; 
+				canvas[i].id = 'plot'+iplot; 
+				canvas[i].setAttribute("class", "canvas");
+				if(i==0) addListeners(canvas[i]);		// add mouse click event listeners
 
-			var canvas = document.createElement('canvas');
-			canvas.innerHTML = emsg; 
-			canvas.id = 'plot'+iplot; 
-			canvas.setAttribute("class", "canvas");
-			addListeners(canvas);		// add mouse click event listeners
+				canvas[i].width = Wg/ncol-15; 			// width used in setting chart duration
 
-//			canvas.width = Wg-15; 			// width used in setting chart duration
-			canvas.width = Wg/ncol-15; 			// width used in setting chart duration
+				Hg = (graphs.clientHeight / nrow) - pcell0.offsetHeight - 20;
+				canvas[i].height = Hg;		// ensure same for all
 
-//			canvas.width = graphs.clientWidth - 15;
-			Hg = (graphs.clientHeight / nrow) - pcell0.offsetHeight - 20;
-//			Hg = 0.95*((graphs.clientHeight / nrow) - pcell0.offsetHeight);
-			canvas.height = Hg;		// ensure same for all
-
-			canvas.align="center";
-			pcell1.appendChild(canvas);
-
+				canvas[i].align="center";
+				if(i> 0) {
+					canvas[i].style.position="absolute";
+					canvas[i].style.top=pdiv.height;
+					canvas[i].style.left=0;
+				}
+//				pdiv1.appendChild(canvas[i]);
+				pcell1.appendChild(canvas[i]);
+			}
 			// associate smoothie chart with canvas
-//			console.log('webscan addCanvas: '+canvas.id);
 			plots[iplot].addCanvas(canvas);
 
 //			vidscan(canvas, 'NASATV/image.jpg');		// foo debug
@@ -2655,9 +2663,9 @@ function plot() {
 	
 	// associate a canvas with this chart
 	this.addCanvas = function(element) {
-		this.width = element.width;
-		this.canvas = element;
-		this.chart.streamTo(element,1000);  // 1 sec delay
+		this.width = element[0].width;		// stripcharts use only first layer
+		this.canvas = element[0];
+		this.chart.streamTo(element[0],1000);  // 1 sec delay
 	};
 	
 	this.setDelay = function(delay) {
@@ -3209,24 +3217,18 @@ function audioscan() {
 function vidscan(param) {
 //	console.log('new vidscan: '+param);
 	this.videoInProgress = 0;
-	this.addLayer=false;
+	this.addLayer={};
 // globals
 	Tnew=0;
 	Told=0;
 	this.canvas=null;
 	
 //  ----------------------------------------------------------------------------------------    
-
-	this.setLayer = function(slayer) {
-		this.addLayer = slayer;
-	}
-	
-//  ----------------------------------------------------------------------------------------    
 //  addCanvas:  set canvas object
 
     this.addCanvas = function(element) {
-    	this.canvas = element;
-    	canvas = element;		// foo
+    	this.canvas = element;		// element here is array of canvas (layers)
+//    	canvas = element;		// foo
 //    	console.log('vidscan addCanvas: '+this.canvas.id);
     }
 
@@ -3243,9 +3245,10 @@ function vidscan(param) {
 
 //  ----------------------------------------------------------------------------------------    
     var lastload=0;
-    this.setImage = function(imgurl,param) {
+    this.setImage = function(imgurl,param,ilayer) {
+    	if(!this.canvas) return;
     	
-    	if(debug) console.log("vidscan setImage, inprogress: "+this.videoInProgress+', imgurl: '+imgurl);
+    	if(debug) console.log("vidscan setImage, inprogress: "+this.videoInProgress+', imgurl: '+imgurl+', ilayer: '+ilayer);
 		var now = new Date().getTime();
 //   	if((imgurl.indexOf("newest") != -1) || (imgurl.indexOf("oldest") != -1)) { // no wait check on limits requests
 //   	}
@@ -3262,8 +3265,11 @@ function vidscan(param) {
 		lastload = now;
 		this.videoInProgress++;
     	img=new Image();							// make new Image every time to avoid onload bug?
-    	img.canvas = this.canvas;
-    	img.addLayer = this.addLayer;
+    	
+    	if(ilayer >= maxLayer) ilayer = maxLayer-1;		// image layers, extra layers auto-alpha
+    	img.canvas = this.canvas[ilayer];
+    	if(ilayer == 0) alpha = 1;
+    	else			alpha = 0.5;
 //    	if(img.canvas == null) console.debug("OOPS, setImage without canvas!!!");
 //    	this.img.onload = imgload.bind(this);
 
@@ -3286,10 +3292,9 @@ function vidscan(param) {
     		}
 
     		var ctx = this.canvas.getContext('2d');
-//    		console.debug('firstImage: '+firstImage+', param: '+param+', this.addLayer: '+this.addLayer);
-    		if(!this.addLayer) 		// this should be done with multiple canvas "layers"
-    				ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image
-    		else	ctx.globalAlpha = 0.5;		
+			ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image layer
+    		ctx.globalAlpha = alpha;
+//    		console.debug('draw alpha: '+alpha+', canvas: '+this.canvas);
     		ctx.drawImage(this,x,y,w,h);
     	}
     	img.onerror = imgerror.bind(this);
