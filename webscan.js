@@ -903,7 +903,8 @@ function rtCollection(time) {
 				var param = plots[j].params[i];
 //				var param = plots[j].params[0];
 				if(!param) continue;
-				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
+//				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
+				if(!endsWith(param,".jpg") && !endsWith(param,".txt")) continue;	// can have mixed .jpg & .wav params!
 
 				anyvideo = true;
 				if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
@@ -3119,15 +3120,16 @@ function plotbox() {
 //  ----------------------------------------------------------------------------------------    
 	// setText: display text in plot box
 	this.setText = function(text) {
-		var ctx = this.canvas.getContext('2d');
+		var cvs = this.canvas[0];		// first layer
+		var ctx = cvs.getContext('2d');
 		ctx.font = "16px Arial";
-		ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image
+		ctx.clearRect(0,0,cvs.width,cvs.height); 		// clear old image
 		
 		var lineHeight = 20;
 		var lineMargin = 20;
 		var y = lineHeight;
 		var lines = text.split('\n');
-		var firstLine = lines.length - Math.ceil((this.canvas.height-20) / lineHeight);	// drop old lines
+		var firstLine = lines.length - Math.ceil((cvs.height-20) / lineHeight);	// drop old lines
 		if(firstLine < 0) firstLine = 0;
 		for(var n=firstLine; n < lines.length; n++) {
 			ctx.fillText(lines[n], lineMargin, y);
