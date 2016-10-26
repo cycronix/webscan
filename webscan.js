@@ -145,7 +145,7 @@ function webscan(server) {
 	};
 
 	buildCharts();					// build  stripcharts
-	setTimeout(function(){buildCharts();}, 500); 	// rebuild after init? (for chartscan, complete channel lists)
+//	setTimeout(function(){buildCharts();}, 500); 	// rebuild after init? (for chartscan, complete channel lists)
 	getLimits(1,1);					// establish time limits
 //	goEOF();
 	setTimeout(function(){ goBOF();}, 1000); 		// make sure data is shown at startup (was goBOF, 1000)
@@ -674,6 +674,7 @@ function setParamValue(text, url, args) {
 		if(time > newgotTime) newgotTime=time;
 		if(plots[pidx] && (plots[pidx].type == "stripchart")) {
 //			console.debug('addValue time: '+time+", value: "+value);
+//			if(i==0) plots[pidx].display.lines[param].dropOldData(0, 1);			// foo debug
 			plots[pidx].addValue(param,time,value);
 		}
 	}
@@ -1210,7 +1211,11 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //AjaxGet:  Ajax request helper func
 
 function AjaxGet(myfunc, url, args) {
-	if(debug) console.log('AjaxGet: '+url);
+	if(debug) {			// foo debug 
+		console.log('AjaxGet: '+url);
+		console.trace();
+	}
+
 	var param = args[0];
 	var pidx = args[1];
 	var duration = args[2];
@@ -1224,7 +1229,6 @@ function AjaxGet(myfunc, url, args) {
 		if (xmlhttp.readyState==4) {
 			if(xmlhttp.status==200) {
 				if(debug) console.log("xmlhttp got: "+url);
-				
 				var holdest = xmlhttp.getResponseHeader("oldest");		
 				if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
 
@@ -1238,7 +1242,7 @@ function AjaxGet(myfunc, url, args) {
 				
 				var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
 //				console.debug('url: '+url+', header time: '+htime+', argtime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
-				myfunc(xmlhttp.responseText, url, args, htime);			
+				myfunc(xmlhttp.responseText, url, args, htime);	
 			}
 			else {		// ERROR Handling
 				if(debug) console.warn('Error on data fetch! '+url+', status: '+xmlhttp.status+", rtflag: "+top.rtflag);
@@ -2149,6 +2153,7 @@ function mouseUp(e) {
 		thiswin.removeEventListener(moveEvent, mouseMove);
 		thiswin=0;		// avoid thrash
 	}
+//	if(mouseIsMove) mouseMove(e);			// ?? final-position slider ??
 	mouseIsMove=mouseIsStep=false;
 }
 
@@ -2711,7 +2716,8 @@ function plot() {
 	this.addValue = function(param, time, value) {
 		if((value!=undefined) && !isNaN(value)) { 	// possible with slow initial fetch
 			var line = this.lines[param];
-			if(false) {		// try faster append without sort
+			var nosort=true;
+			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
 				line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
 				line.minValue = isNaN(line.minValue) ? value : Math.min(line.minValue, value);
