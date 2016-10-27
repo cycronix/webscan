@@ -754,18 +754,26 @@
     // Draw the axis values on the chart.
     if (!chartOptions.labels.disabled && !isNaN(this.valueRange.min) && !isNaN(this.valueRange.max)) {
       var maxValueString = chartOptions.yMaxFormatter(this.valueRange.max, chartOptions.labels.precision),
-          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision),
-          labelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(maxValueString).width - 2;
+          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision);
+//          labelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(maxValueString).width - 2;		// MJM
       
+      context.fillStyle = chartOptions.labels.fillStyle;
+
       // MJM format tweek option:
       if(chartOptions.timerangeFormatter) {
     	  minValueString = chartOptions.timerangeFormatter(this.valueRange.min);
     	  maxValueString = chartOptions.timerangeFormatter(this.valueRange.max);
+    	  labelPos = dimensions.width - context.measureText(maxValueString).width - 2;
+          context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize);
+    	  labelPos = dimensions.width - context.measureText(minValueString).width - 2;
+          context.fillText(minValueString, labelPos, dimensions.height - 2);
+      }
+      else {
+          labelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(maxValueString).width - 2;
+          context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize);
+          context.fillText(minValueString, labelPos, dimensions.height - 2);
       }
 
-      context.fillStyle = chartOptions.labels.fillStyle;
-      context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize);
-      context.fillText(minValueString, labelPos, dimensions.height - 2);
     }
 
     // Display timestamps along x-axis at the bottom of the chart.

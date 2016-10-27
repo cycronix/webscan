@@ -553,7 +553,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
 //					console.debug('setAudio, holdest: '+holdest+', oldestTime: '+oldestTime);
 
-					var hnewest = audioRequest.getResponseHeader("newest");		
+					var hnewest = audioRequest.getResponseHeader("newest");	
+//					console.log("setAudio, hnewest: "+hnewest+", newestTime: "+newestTime);
 					if(hnewest != null) {
 						newestTime = 1000 * Number(hnewest);
 						paramTime[param] = newestTime;
@@ -826,17 +827,19 @@ function rtCollection(time) {
 
 		if(dfetch <= 0) return;		// nothing new
 		
-		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
+		if(singleStep) {										// delayed-start so as not to pre-scroll too much
+			for(var j=0; j<plots.length; j++) plots[j].start();			
+			singleStep = false;
+		}
+		
+//		console.log("tfetch: "+tfetch+", newestTime: "+newestTime+", tright: "+tright+", top.rtflag: "+top.rtflag);
+//		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
+		if((tright>newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
 			if(intervalID2==0) goPause();
 			return;
-		}
-		
-		if(singleStep) {										// delayed-start so as not to pre-scroll too much
-			for(var j=0; j<plots.length; j++) plots[j].start();			
-			singleStep = false;
 		}
 		
 		for(var j=0; j<plots.length; j++) {
@@ -864,7 +867,7 @@ function rtCollection(time) {
 //				}
 			}
 		}
-
+		
 		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag+', intervalID2: '+intervalID2);
 		if(!anyplots) {
 			if(debug) console.log('no stripcharts, stopping monitor');
@@ -1651,7 +1654,7 @@ function rebuildPage2(maxWait) {
 
 function setTimeNoSlider(time) {
 	if(time == 0 || isNaN(time)) return;		// uninitialized
-	updateTimeLimits(time);
+//	updateTimeLimits(time);		// not always accurate limits
 	
 	var month = new Array();
 	month[0] = "Jan";	month[1] = "Feb";	month[2] = "Mar";	month[3] = "Apr";	month[4] = "May";	month[5] = "Jun";
@@ -1719,7 +1722,8 @@ function timeSelect(el) {
 }
 
 function updateTimeLimits(time) {
-	if(debug) console.log("updateTimeLimits: "+time);
+//	if(debug) 
+		console.log("updateTimeLimits: "+time);
 	if(time <= 0) return;
 	if(time > newestTime) newestTime = time;
 	if(time < oldestTime) oldestTime = time;
