@@ -664,22 +664,30 @@ function setParamValue(text, url, args) {
 	datavals = datavals.filter(function(s) { return s.length > 0; } );
 	var nval = datavals.length;		// presume last is blank?
 	
-	for(var i=0; i<nval; i++) {
-		var timeval = datavals[i].split(",");
-		ttime = 1000.*parseFloat(timeval[0]);					// sec -> msec (float)
-		value = parseFloat(timeval[1]);
+//	console.debug("duration: "+duration+", getDuration(): "+getDuration());
+	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
+//		var line = null;
+//		if(duration >= getDuration()) {
+//			line = plots[pidx].display.lines[param];		// for faster line-creation?  (can't see a difference)
+//			line.clear();	// clear old data?
+//		}
+		if(duration >= getDuration()) plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
 
-		if(isNaN(ttime)) continue;			// check for blank, bad time val
-		else			 time = ttime;
-		if(time < oldgotTime) oldgotTime=time;
-		if(time > newgotTime) newgotTime=time;
-		if(plots[pidx] && (plots[pidx].type == "stripchart")) {
-//			console.debug('addValue time: '+time+", value: "+value);
-//			if(i==0) plots[pidx].display.lines[param].dropOldData(0, 1);			// foo debug
-			plots[pidx].addValue(param,time,value);
+		for(var i=0; i<nval; i++) {
+			var timeval = datavals[i].split(",");
+			ttime = 1000.*parseFloat(timeval[0]);					// sec -> msec (float)
+			value = parseFloat(timeval[1]);
+
+			if(isNaN(ttime)) continue;			// check for blank, bad time val
+			else			 time = ttime;
+			if(time < oldgotTime) oldgotTime=time;
+			if(time > newgotTime) newgotTime=time;
+//			if(line) plots[pidx].display.putValue(line,time,value,i);
+//			else	 
+				plots[pidx].addValue(param,time,value);
 		}
 	}
-	
+	else return;		// notta
 
 	inProgress--;
 	if(inProgress < 0) inProgress=0;		// failsafe
@@ -744,13 +752,19 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	var dt = duration / values.length;		// deduce timestamps
 	var time=reqtime;
 	
-	for(var i=0; i<nval; i++) {
-		time = reqtime + i*dt;
-		if(plots[pidx] && (plots[pidx].type == "stripchart")) {
-//			console.debug("plots["+pidx+"].addValue("+param+","+time+","+values[i]);
+//	console.debug("duration: "+duration+", getDuration(): "+getDuration());
+	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
+//		var line = plots[pidx].display.lines[param];		// for faster line-creation
+//		line.clear();				// clear old data?
+//		if(duration >= getDuration()) plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
+
+		for(var i=0; i<nval; i++) {
+			time = reqtime + i*dt;
 			plots[pidx].addValue(param,time,values[i]);
+//			plots[pidx].display.putValue(line,time,value[i],i);
 		}
 	}
+	else 	return;		// notta
 
 	if(debug) console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
 //	if(/* singleStep && */ (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
@@ -2720,6 +2734,7 @@ function plot() {
 	this.addValue = function(param, time, value) {
 		if((value!=undefined) && !isNaN(value)) { 	// possible with slow initial fetch
 			var line = this.lines[param];
+//			console.debug('addValue, param: '+param+', line.length: '+line.data.length);
 			var nosort=true;
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
@@ -2730,6 +2745,17 @@ function plot() {
 			}
 			this.chart.now = time;		// for playback time render()
 		}
+	};
+	
+	// direct-assignment a data value to timeseries
+	this.putValue = function(line, time, value, idx) {
+//		console.debug('putValue, param: '+param+', line.length: '+line.data.length);
+
+		line.data[idx] = [time, value];		// try faster push 
+		line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
+		line.minValue = isNaN(line.minValue) ? value : Math.min(line.minValue, value);
+
+		this.chart.now = time;		// for playback time render()
 	};
 	
 	this.getData = function(param) {
