@@ -671,7 +671,10 @@ function setParamValue(text, url, args) {
 //			line = plots[pidx].display.lines[param];		// for faster line-creation?  (can't see a difference)
 //			line.clear();	// clear old data?
 //		}
-		if(duration >= getDuration()) plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
+		if(duration >= getDuration() && top.rtflag==PAUSE) {
+			if(debug) console.debug("setParamValue, clear line, top.rtflag: "+top.rtflag);
+			plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
+		}
 
 		for(var i=0; i<nval; i++) {
 			var timeval = datavals[i].split(",");
