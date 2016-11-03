@@ -755,6 +755,8 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	var dt = duration / values.length;		// deduce timestamps
 	var time=reqtime;
 	
+	inProgress--;
+	
 //	console.debug("duration: "+duration+", getDuration(): "+getDuration());
 	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
 //		var line = plots[pidx].display.lines[param];		// for faster line-creation
@@ -779,7 +781,7 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 //			plots[pidx].render(reqtime);		// render at got-time
 	} 
 
-	inProgress--;
+//	inProgress--;
 
 	if(inProgress < 0) inProgress=0;		// failsafe
 //	if(inProgress == 0) document.body.style.cursor = 'default';
@@ -1730,6 +1732,7 @@ function getTime() {
 
 var lastSet=0;
 function timeSelect(el) {
+//	console.debug("timeSelect, inProgress: "+inProgress);
 	if(inProgress) return;
 	var now = new Date().getTime();
 	if((now - lastSet) < 100) return;			// ease up if busy
@@ -2561,7 +2564,6 @@ function goTime(percentTime) {
 
 // go to percentTime, where time is right-edge (newest) of duration time interval
 function goTime2(percentTime) {
-//	if(debug) console.debug("goTime2: "+percentTime+", old: "+oldestTime+", new: "+newestTime);
 	maxwaitTime=0;
 	if(newestTime == 0) {		// hopefully doesn't happen, obscure problems if lumber on
 //		alert('Warning, unknown limits, unable to set time position');			
@@ -3212,6 +3214,7 @@ function audioscan() {
 //		TO DO:  use audio in audio.wav (vs pcm) format, then skip the createBuffer() call which is not implemented on IOS
 		if(audio.length <= 0) {
 			console.warn("playPcmChunk zero length audio!");
+			inProgress=0;
 			return;
 		}
 	
