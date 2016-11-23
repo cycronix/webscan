@@ -21,7 +21,7 @@ limitations under the License.
 /**
  * WebScan
  * Matt Miller, Cycronix
- * 02/2014 - 06/2014
+ * 02/2014 - 11/2016
  * 
  * v0.1: Initial prototype release
  * v0.5: Initial playback control buttons
@@ -43,7 +43,8 @@ limitations under the License.
  * V2.0B10:	Better wild-point rejection scaling for "Tight" scaling
  * V2.0:	Same as V2.0B10, production release
  * V3b1:	Rework controls/UI, add playRvs
- * V3b2-6:	Streamline, responsive UI, improved RT, image layers
+ * V3b2-7:	Streamline, responsive UI, improved RT, image layers
+ * V3.0:	Freeze V3b7 as release (11/23/2016)
  */
 
 //----------------------------------------------------------------------------------------	
