@@ -947,9 +947,9 @@ function rtCollection(time) {
 					if(debug) console.debug('New PLAYDELAY: '+playDelay);
 				} else {
 					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+paramTime[param]);
-//					if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
-//					else						
-						fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
+					if(endsWith(param,'.txt') && top.rtflag==RT)	
+								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
+					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
 				}
 			}
 		}
