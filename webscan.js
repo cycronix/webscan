@@ -696,7 +696,9 @@ function setParamValue(text, url, args) {
 	inProgress--;
 	if(inProgress < 0) inProgress=0;		// failsafe
 	
-	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
+	if(debug) console.debug('plots['+pidx+'].nfetch: '+plots[pidx].nfetch);
+//	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot (can be out of order!?)
+	if(singleStep && plots[pidx].nfetch==0) {												// last param this plot by counter
 		if(debug) console.debug('singleStep render, lastreqTime: '+lastreqTime+", tend: "+time);
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
 		else				plots[pidx].render(0);					// use last point got
@@ -1187,11 +1189,12 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 
 	for(var j=0; j<plots.length; j++) {				// get data once each plot
 		plots[j].dropdata();
+		plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
 		for(var i=0; i<plots[j].params.length; i++) {
 //			console.debug('refresh fetch time: '+time+", dur: "+fetchdur);
 			var isImage = endsWith(plots[j].params[i], ".jpg")
 			if(isImage) fetchData(plots[j].params[i], j, fetchdur, time, reftime);			// fetch new data (async)
-			else		fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
+			else 		fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
 		}	
 	}	
 
@@ -1234,16 +1237,16 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //AjaxGet:  Ajax request helper func
 
 function AjaxGet(myfunc, url, args) {
+	if(args != null) {
+		var param = args[0];
+		var pidx = args[1];
+		var duration = args[2];
+		var time = args[3];
+	}
 	if(debug) {			// foo debug 
 		console.log('AjaxGet: '+url);
-		console.trace();
 	}
-
-	var param = args[0];
-	var pidx = args[1];
-	var duration = args[2];
-	var time = args[3];
-
+	
 	var xmlhttp=new XMLHttpRequest();
 
 	xmlhttp.onreadystatechange=function() {
@@ -1252,18 +1255,22 @@ function AjaxGet(myfunc, url, args) {
 		if (xmlhttp.readyState==4) {
 			if(xmlhttp.status==200) {
 				if(debug) console.log("xmlhttp got: "+url);
-				var holdest = xmlhttp.getResponseHeader("oldest");		
-				if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+				if(pidx!=null) plots[pidx].nfetch--;
 
-				var hnewest = xmlhttp.getResponseHeader("newest");		
-				if(hnewest != null) {
-					newestTime = 1000 * Number(hnewest);
-//					if(top.rtflag == RT) 
+				if(param != null) {
+					var holdest = xmlhttp.getResponseHeader("oldest");		
+					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+
+					var hnewest = xmlhttp.getResponseHeader("newest");		
+					if(hnewest != null) {
+						newestTime = 1000 * Number(hnewest);
+//						if(top.rtflag == RT) 
 						paramTime[param] = newestTime;		// for oldest-of-newest RT check
+					}
+					if(paramTime[param]==null) paramTime[param]= time+duration;
+
+					var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
 				}
-				if(paramTime[param]==null) paramTime[param]= time+duration;
-				
-				var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
 //				console.debug('url: '+url+', header time: '+htime+', argtime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
 				myfunc(xmlhttp.responseText, url, args, htime);	
 			}
@@ -1289,6 +1296,7 @@ function AjaxGet(myfunc, url, args) {
 	xmlhttp.open("GET",url,true);
 	xmlhttp.onerror = function() { goPause(); alert('xmlhttp error'); };
 	fetchActive(true);
+	if(pidx!=null) plots[pidx].nfetch++;
 	xmlhttp.send();
 }
 
@@ -1297,7 +1305,8 @@ function AjaxGet(myfunc, url, args) {
 
 function fetchChanList() {
 	channels = new Array();
-	AjaxGet(parseWT,serverAddr+servletRoot,"chanList");
+//	AjaxGet(parseWT,serverAddr+servletRoot,"chanList");
+	AjaxGet(parseWT,serverAddr+servletRoot,null);
 }
 
 //----------------------------------------------------------------------------------------	
@@ -1313,7 +1322,8 @@ function parseWT(page,url,selel) {
 		if(opt == '_Log/') continue;		// skip log text chans
 //		opt.replace("//","/");				// collapse any double slash to single ('//' -> '/)
 		if(endsWith(opt, "/")) {
-			AjaxGet(parseWT,url+"/"+opt,"chanList");		// chase down multi-part names
+//			AjaxGet(parseWT,url+"/"+opt,"chanList");		// chase down multi-part names
+			AjaxGet(parseWT,url+"/"+opt,null);				// chase down multi-part names
 		} else {										// Channel
 			var fullchan = url+opt;
 			fullchan = fullchan.substring(fullchan.indexOf(servletRoot)+servletRoot.length+1);
@@ -3032,6 +3042,7 @@ function plotbox() {
 	this.canvas = null;
 	this.doFill=false;						// under-line fill?
 	this.doSmooth=false;					// bezier curve interpolate?
+	this.nfetch=0;
 	
 	// add a parameter to this plot
 	this.addParam = function(param) {
