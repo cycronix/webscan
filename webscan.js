@@ -856,7 +856,7 @@ function rtCollection(time) {
 		
 //		console.log("tfetch: "+tfetch+", newestTime: "+newestTime+", tright: "+tright+", top.rtflag: "+top.rtflag);
 //		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
-		if((tright>newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
+		if((tright>newestTime /*||tfetch<oldestTime*/) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
@@ -947,8 +947,9 @@ function rtCollection(time) {
 					if(debug) console.debug('New PLAYDELAY: '+playDelay);
 				} else {
 					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+paramTime[param]);
-					if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
-					else						fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
+//					if(endsWith(param,'.txt'))	fetchData(param, j, 0, 0, "newest");			// text:  always get newest
+//					else						
+						fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
 				}
 			}
 		}
