@@ -409,7 +409,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(debug) {
 		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
-		console.trace();
+//		console.trace();
 	}
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	
@@ -551,13 +551,17 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 // ??					if(waveHdrLen > 0) hdur = 1000. * floats.length / estRate;	// msec
 					
 					var holdest = audioRequest.getResponseHeader("oldest");	
-					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+//					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+					var Told = oldestTime = 1000 * Number(holdest);
+					if(Told < oldestTime || oldestTime==0) oldestTime = Told;
+					
 //					console.debug('setAudio, holdest: '+holdest+', oldestTime: '+oldestTime);
 
 					var hnewest = audioRequest.getResponseHeader("newest");	
 //					console.log("setAudio, hnewest: "+hnewest+", newestTime: "+newestTime);
 					if(hnewest != null) {
-						newestTime = 1000 * Number(hnewest);
+						var Tnew = 1000 * Number(hnewest);
+						if(Tnew > newestTime) newestTime = Tnew;
 						paramTime[param] = newestTime;
 					}
 					if(paramTime[param]==null) paramTime[param]= newestTime;		// ??
@@ -566,8 +570,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					
 					if(duration == 0) {		// no display on limit checks
 						if(debug) console.debug("duration0, tstamp: "+htime+", oldestTime: "+oldestTime+", newestTime: "+newestTime);
-						if(refTime=="oldest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=0; 	  oldestTime=htime; }	
-						if(refTime=="newest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=100;  newestTime=htime; }	
+						if(refTime=="oldest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=0; 	  if(htime<oldestTime) oldestTime=htime; }	
+						if(refTime=="newest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=100;  if(htime>newestTime) newestTime=htime; }	
 					}
 					else {
 						setParamBinary(floats, url, param, plotidx, hdur, htime, refTime);	
@@ -708,8 +712,8 @@ function setParamValue(text, url, args) {
 
 	if(nval > 0) {
 		lastgotTime = time;
-		if(refTime=="oldest") { setTime(time);	document.getElementById('TimeSelect').value=0; 	  oldestTime=oldgotTime; }	
-		else if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  newestTime=newgotTime; }	
+		if(refTime=="oldest") { setTime(time);	document.getElementById('TimeSelect').value=0; 	  		if(oldgotTime<oldestTime) oldestTime=oldgotTime; }	
+		else if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  	if(newgotTime>newestTime) newestTime=newgotTime; }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
 //		setTime(time);		// always set it here?
@@ -737,10 +741,11 @@ function setParamText(text, url, args, time) {
 	if(text.length > 0) {
 		plots[pidx].setText(text);
 		lastmediaTime = time;			// text is considered media (fastRT fetch)
-		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	  oldestTime=time; }	
-		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  newestTime=time; }	
+		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	 }	
+		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 		else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);	// only setTime for plot0
+		updateTimeLimits(time);
 		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
 	}
 	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
@@ -1150,7 +1155,7 @@ function refreshCollection(onestep, time, fetchdur, reftime) {
 	refreshInProgress=true;
 	if(debug) {
 		console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep);
-		console.trace();
+//		console.trace();
 	}
 
 //	if(reftime=="absolute") time = getTime() - getDuration();		// adjust RE time to LE time
@@ -1232,6 +1237,9 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //	document.body.style.cursor = 'default';
 	refreshInProgress=false;
 	resetMode=false;
+	
+	// force timeslider to show EOF:
+	if(reftime=="newest") setTime(newestTime);
 }
 
 //----------------------------------------------------------------------------------------
@@ -1259,13 +1267,15 @@ function AjaxGet(myfunc, url, args) {
 				if(pidx!=null) plots[pidx].nfetch--;
 
 				if(param != null) {
-					var holdest = xmlhttp.getResponseHeader("oldest");		
-					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+					var holdest = xmlhttp.getResponseHeader("oldest");	
+					var Told = 1000 * Number(holdest);
+					if(Told < oldestTime || oldestTime==0) oldestTime = Told;
+//					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
 
 					var hnewest = xmlhttp.getResponseHeader("newest");		
 					if(hnewest != null) {
-						newestTime = 1000 * Number(hnewest);
-//						if(top.rtflag == RT) 
+						var Tnew = 1000 * Number(hnewest);
+						if(Tnew > newestTime) newestTime = Tnew;
 						paramTime[param] = newestTime;		// for oldest-of-newest RT check
 					}
 					if(paramTime[param]==null) paramTime[param]= time+duration;
@@ -1754,11 +1764,10 @@ function timeSelect(el) {
 }
 
 function updateTimeLimits(time) {
-//	if(debug) 
-		console.log("updateTimeLimits: "+time);
+	if(debug) console.log("updateTimeLimits: "+time);
 	if(time <= 0) return;
 	if(time > newestTime) newestTime = time;
-	if(time < oldestTime) oldestTime = time;
+	if(time < oldestTime || oldestTime==0) oldestTime = time;
 }
 
 var resetMode=false;
@@ -2107,6 +2116,12 @@ var mouseClickX=0;
 
 function mouseDown(e) {
 //	console.log('mouseDown');
+    e = e || window.event;
+
+    // filter out right-mouse clicks
+    if 		("which" in e) 	if(e.which == 3) return; 	// Gecko (Firefox), WebKit (Safari/Chrome) & Opera
+    else if ("button" in e)	if(e.button == 2) return;  // IE, Opera 
+	
 	thisplot = mouseClickPlot(e);
 	thiswin = this;		// for mouseout
 
@@ -3491,11 +3506,12 @@ function vidscan(param) {
     		if(imgurl.indexOf("r=newest") != -1) { 
     			Tnew = stime;  
 //        		if(Tnew > newestTime || newestTime == 0) 
+    			if(Tnew > newestTime)
         			newestTime = Tnew;
     		}
     		else if(imgurl.indexOf("r=oldest") != -1) { 
     			Told = stime; 
-//        		if(Told < oldestTime || oldestTime == 0) 
+        		if(Told < oldestTime || oldestTime == 0) 
         			oldestTime = Told;
     		}
 //    		setTimeNoSlider(stime);
@@ -3571,12 +3587,17 @@ function vidscan(param) {
     				if(debug) console.debug("img.src = new blob!  url: "+url+", length: "+xmlhttp.response.size);
 
     				var holdest = xmlhttp.getResponseHeader("oldest");		
-    				if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+    				if(holdest != null) {
+    					var Told = 1000 * Number(holdest);
+    					if(oldestTime == 0 || Told < oldestTime) oldestTime = Told;
+//    					oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+    				}
 
     				var hnewest = xmlhttp.getResponseHeader("newest");		
     				if(hnewest != null) {
-    					newestTime = 1000 * Number(hnewest);
-    					paramTime[param] = newestTime;
+    					var Tnew = 1000 * Number(hnewest);
+    					if(Tnew > newestTime) newestTime = Tnew;
+						paramTime[param] = newestTime;
     				}
 
     		    	if(debug) console.debug('AjaxGetImage, tstamp: '+tstamp+", holdest: "+holdest+", hnewest: "+hnewest);
@@ -3594,7 +3615,7 @@ function vidscan(param) {
     		    		if(/* (T < Told) || */ holdest==null && (url.indexOf("r=oldest") != -1)) {
     		    			Told = T;
 //        		    		if(T < oldestTime || oldestTime == 0) 
-        		    			oldestTime = T;
+    		    			if(T < oldestTime || oldestTime==0) oldestTime = T;
     		    		}
     		    		
         		    	Tlast = T;
