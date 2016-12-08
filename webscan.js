@@ -3410,8 +3410,8 @@ function vidscan(param) {
 			if(debug) console.debug('reset video_inprogress');
     		this.videoInProgress = 0;
     	}
-		else if(this.videoInProgress>2 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
-    		console.warn('video busy, skipping: '+imgurl);
+		else if(this.videoInProgress>0 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
+    		console.warn('video busy, skipping: '+imgurl+", videoInProgress: "+this.videoInProgress);
 //    		this.videoInProgress = 0;		// single wait?
     		return;						
     	}
