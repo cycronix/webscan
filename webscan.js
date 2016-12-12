@@ -862,7 +862,6 @@ function rtCollection(time) {
 		}
 		
 //		console.log("tfetch: "+tfetch+", newestTime: "+newestTime+", tright: "+tright+", top.rtflag: "+top.rtflag);
-//		if((tfetch>=newestTime||tfetch<oldestTime) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
 		if((tright>newestTime /*||tfetch<oldestTime*/) && (top.rtflag!=RT /* && rtmode==0 */)) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor');
 			clearInterval(intervalID);		// notta to do
@@ -872,13 +871,12 @@ function rtCollection(time) {
 		}
 		
 		for(var j=0; j<plots.length; j++) {
-			plots[j].setDelay(playDelay);
+			plots[j].setDelay(playDelay);			// sets smoothie plot delay
 						
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
 				
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
-//				if(plots[j].type != 'stripchart') continue;		// can have audio param on video plot
 				anyplots=true;	
 				
 				if(debug) console.debug('playDelay: '+playDelay+', tright: '+tright+', newestTime: '+newestTime+', paramTime: '+paramTime[param]+', param: '+param);
@@ -890,10 +888,7 @@ function rtCollection(time) {
 						if(debug) console.debug('New PLAYDELAY: '+playDelay);
 					}
 				} 
-//				else { 
-//					console.debug('fetch abs, tfetch: '+tfetch+', dfetch: '+dfetch);
-					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
-//				}
+				fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 			}
 		}
 		
@@ -3249,10 +3244,14 @@ function audioscan() {
 		}
 	
 		// Warning:  Safari doesn't work with srate<22050
-		var audioBuffer = audioContext.createBuffer(1, audio.length, srate);	
-		audioBuffer.getChannelData(0).set(audio);
-		audioSource.buffer = audioBuffer;
-		audioSource.start ? audioSource.start(0) : audioSource.noteOn(0);
+        try {
+            var audioBuffer = audioContext.createBuffer(1, audio.length, srate);
+            audioBuffer.getChannelData(0).set(audio);
+            audioSource.buffer = audioBuffer;
+            audioSource.start ? audioSource.start(0) : audioSource.noteOn(0);
+        } catch(err) { 
+            console.warn("Cannot play audio!");          
+        }
 	}
     
     this.playMp3Chunk = function(data) {
