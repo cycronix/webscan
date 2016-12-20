@@ -850,10 +850,10 @@ function rtCollection(time) {
 		var tleft = tright - pDur;						// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
-		var dfetch = 1.1*dt + (tright - tfetch);		// fetch enough to go past tright
 		
-		if(debug) console.debug('dfetch: '+dfetch+', pDur: '+pDur+", tfetch: "+tfetch+", tleft: "+tleft+", tright: "+tright+", lastgotTime: "+lastgotTime+", dt: "+dt);
+		var dfetch = 2*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
 
+		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+(tfetch-playStart)+', tleft: '+(tleft-playStart)+', lastgotTime: '+(lastgotTime-playStart)+', tright: '+(tright-playStart));
 		if(dfetch <= 0) return;		// nothing new
 		
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
@@ -886,6 +886,9 @@ function rtCollection(time) {
 						AjaxGetParamTimeNewest(param);
 						playDelay = new Date().getTime() - paramTime[param];	// increase playDelay if getting ahead
 						if(debug) console.debug('New PLAYDELAY: '+playDelay);
+					}
+					else {
+						playDelay -= 10;		// catch up...
 					}
 				} 
 				fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
