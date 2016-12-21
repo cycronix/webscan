@@ -552,8 +552,10 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					
 					var holdest = audioRequest.getResponseHeader("oldest");	
 //					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
-					var Told = oldestTime = 1000 * Number(holdest);
-					if(Told != 0 && (Told < oldestTime || oldestTime==0)) oldestTime = Told;
+					var Told = 1000 * Number(holdest);
+					if(Told != 0 && (Told < oldestTime || oldestTime==0)) { 
+						oldestTime = Told;
+					}
 					
 //					console.debug('setAudio, holdest: '+holdest+', oldestTime: '+oldestTime);
 
@@ -638,7 +640,9 @@ function setAudioByType(url,type) {
 //		    		if((T > newestTime) || (url.indexOf("r=newest") != -1)) newestTime = T;
 //		    		if((T < oldestTime) || (url.indexOf("r=oldest") != -1)) oldestTime = T;
 		    		if(T > newestTime) newestTime = T;
-		    		if((T < oldestTime) && (T!=0)) oldestTime = T;
+		    		if((T < oldestTime) && (T!=0)) {
+		    			oldestTime = T;
+		    		}
     		    	if(debug) console.debug('setAudioByType, header Time: '+T);
     	    		setTimeNoSlider(T);
 		    	}
@@ -1269,8 +1273,10 @@ function AjaxGet(myfunc, url, args) {
 				if(param != null) {
 					var holdest = xmlhttp.getResponseHeader("oldest");	
 					var Told = 1000 * Number(holdest);
-					if(Told!=0 && (Told < oldestTime || oldestTime==0)) oldestTime = Told;
-//					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
+					if(Told!=0 && (Told < oldestTime || oldestTime==0)) {
+						oldestTime = Told;
+					}
+//					if(holdest != null) oldestTime = 1000 * Number(holdest);	
 
 					var hnewest = xmlhttp.getResponseHeader("newest");		
 					if(hnewest != null) {
@@ -1767,7 +1773,9 @@ function updateTimeLimits(time) {
 	if(debug) console.log("updateTimeLimits: "+time);
 	if(time <= 0) return;
 	if(time > newestTime) newestTime = time;
-	if(time!=0 && (time < oldestTime || oldestTime==0)) oldestTime = time;
+	if(time!=0 && (time < oldestTime || oldestTime==0)) {
+		oldestTime = time;
+	}
 }
 
 var resetMode=false;
@@ -1831,6 +1839,7 @@ function updateNewest() {
 function updateOldest() {
 //	console.debug("updateOldest!");
 	oldestTime = new Date().getTime();		// force update
+
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
 			AjaxGetParamTimeOldest(plots[j].params[i]);
@@ -1877,7 +1886,9 @@ function AjaxGetParamTimeOldest(param) {
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
 				paramTime[param] = ptime;
-				if(ptime < oldestTime) oldestTime = ptime;
+				if(ptime < oldestTime) {
+					oldestTime = ptime;
+				}
 				if(debug) console.debug("AjaxGetParamTimeOldest, param: "+param+", ptime: "+ptime+', oldestTime: '+oldestTime);
 			}
 			else {  				
@@ -3413,7 +3424,7 @@ function vidscan(param) {
     		this.videoInProgress = 0;
     	}
 		else if(this.videoInProgress>0 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
-    		console.warn('video busy, skipping: '+imgurl+", videoInProgress: "+this.videoInProgress);
+    		if(debug) console.warn('video busy, skipping: '+imgurl+", videoInProgress: "+this.videoInProgress);
 //    		this.videoInProgress = 0;		// single wait?
     		return;						
     	}
@@ -3515,7 +3526,9 @@ function vidscan(param) {
     		}
     		else if(imgurl.indexOf("r=oldest") != -1) { 
     			Told = stime; 
-        		if(Told!=0 && (Told < oldestTime || oldestTime == 0)) oldestTime = Told;
+        		if(Told!=0 && (Told < oldestTime || oldestTime == 0)) {
+        			oldestTime = Told;
+        		}
     		}
 //    		setTimeNoSlider(stime);
     		setTime(stime);
@@ -3592,7 +3605,9 @@ function vidscan(param) {
     				var holdest = xmlhttp.getResponseHeader("oldest");		
     				if(holdest != null) {
     					var Told = 1000 * Number(holdest);
-    					if(Told!=0 && (oldestTime == 0 || Told < oldestTime)) oldestTime = Told;
+    					if(Told!=0 && (oldestTime == 0 || Told < oldestTime)) {
+    						oldestTime = Told;
+    					}
 //    					oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
     				}
 
@@ -3618,7 +3633,9 @@ function vidscan(param) {
     		    		if(/* (T < Told) || */ holdest==null && (url.indexOf("r=oldest") != -1)) {
     		    			Told = T;
 //        		    		if(T < oldestTime || oldestTime == 0) 
-    		    			if(T!=0 && (T < oldestTime || oldestTime==0)) oldestTime = T;
+    		    			if(T!=0 && (T < oldestTime || oldestTime==0)) {
+    		    				oldestTime = T;
+    		    			}
     		    		}
     		    		
         		    	Tlast = T;
