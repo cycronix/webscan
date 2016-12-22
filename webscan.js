@@ -429,15 +429,10 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(isAudio) {	
 		munge = "?dt=b";						// binary fetch
-//		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(refreshCount++);		// no browser cache on newest
 		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
 
 		if(endsWith(param,".wav")) munge += ("&d="+duration/1000.); else		// FOO try to get something to play in .wav format			
-		
-//		if(top.rtflag == PAUSE && duration>200) 
-//				munge += ("&d="+0.2);					// limit binary audio duration during scrolling
-//		else	
-			munge += ("&d="+duration/1000.);		// rt playback presumes duration increment steps...
+		munge += ("&d="+duration/1000.);		// rt playback presumes duration increment steps...
 		
 		if(refTime) munge += ("&r="+refTime);
 		if(time < 0) time = 0;
@@ -445,21 +440,15 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		
 		var url = serverAddr + servletRoot+"/"+escape(param)+munge;
 		if(endsWith(param,".mp3")) 		setAudioByType(url,"mp3");
-//		else if(endsWith(param,".wav")) setAudioByType(url,"wav");		
 		else	{
-//			setAudio(url, duration);
 			setAudio(url, param, plotidx, duration, time, refTime);		// single fetch, setParamValue from binary
-//			return;
 		}
-//		if(plots[plotidx].type=='video') return;						// if audio with video, no stripchart
-//		if(endsWith(param,".wav")) return;			// FOO, try to get .wav to play
 		return;
 	}
 		
 	if(isImage || isText) {									
 		munge = "?dt=b";						// binary fetch
 		if(refTime) munge += ("&r="+refTime);
-//		munge+="&refresh="+(new Date().getTime());			// ensure nocache
 	} 
 	else  {				
 		munge = "?dt=s&f=b";
@@ -470,22 +459,17 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 
 	if(refTime == "absolute" || refTime == "next" || refTime == "prev" || refTime == "after") munge+=("&t="+time/1000.);
-//	if(refTime == "newest" || refTime == "after") munge+="&refresh="+(refreshCount++);		// no browser cache on newest
-//	if(refTime == "newest" || refTime == "after" || refTime == "next") 
 	if(refTime != "absolute")
 		munge+="&refresh="+(new Date().getTime());		// no browser cache on ANY non-absolute time call
-
 
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
 
 	if(isImage) {
-//		var alpha = (param == plots[plotidx].params[0]) ? 1: 0.5;
 		plots[plotidx].display.setImage(url,param,plots[plotidx].params.indexOf(param));
 	} else {	
 		if(isText) 	AjaxGet(setParamText, url, arguments);
 		else 		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
 		inProgress++;
-//		document.body.style.cursor = 'wait';
 	}
 }
 
@@ -502,9 +486,10 @@ function endsWith(str, suffix) {
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function setAudio(url, param, plotidx, duration, time, refTime) {
-	if(debug) console.log("setAudio: "+url+", time: "+time+', refTime: '+refTime);
-//	if(ascan == null) ascan = new audioscan();		// save recreation every time?
+	if(debug) 
+		console.log("setAudio: "+url+", refTime: "+refTime);
 
+//	var rtime = new Date().getTime();		// request time
 	var audioRequest = new XMLHttpRequest();
 	audioRequest.open('GET', url, true); 				//	open the request...
 	audioRequest.responseType = 'arraybuffer';			// binary response
@@ -517,6 +502,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
     audioRequest.onreadystatechange = function () {
         if (audioRequest.readyState == 4) {
 			if(audioRequest.status==200) {
+//				console.debug("audio fetch time: "+(new Date().getTime() - rtime)+', pts: '+audioRequest.response.byteLength+', url: '+url);
 				if(audioRequest.response.byteLength > 1) {
 
 					var buffer = new Int16Array(audioRequest.response);
@@ -541,26 +527,20 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					else						htime = time;
 					
 					// Last-Modified time would be handy except it is only integer-seconds resolution
-//					var lastmodified = audioRequest.getResponseHeader("Last-Modified");
-//					var lastmodtime = new Date(lastmodified).getTime();
-//					console.log("setAudio, lastModified: "+lastmodified+', lastmodtime: '+lastmodtime+', htime: '+htime);
-					
 					var hdur = audioRequest.getResponseHeader("duration");		
 					if(hdur != null) 	hdur = 1000 * Number(hdur);				// sec -> msec
 					else			  	hdur = duration;
-// ??					if(waveHdrLen > 0) hdur = 1000. * floats.length / estRate;	// msec
-					
+
 					var holdest = audioRequest.getResponseHeader("oldest");	
 //					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
-					var Told = 1000 * Number(holdest);
-					if(Told != 0 && (Told < oldestTime || oldestTime==0)) { 
-						oldestTime = Told;
+					if(holdest != null) {
+						var Told = 1000 * Number(holdest);
+						if(Told != 0 && (Told < oldestTime || oldestTime==0)) { 
+							oldestTime = Told;
+						}
 					}
-					
-//					console.debug('setAudio, holdest: '+holdest+', oldestTime: '+oldestTime);
 
 					var hnewest = audioRequest.getResponseHeader("newest");	
-//					console.log("setAudio, hnewest: "+hnewest+", newestTime: "+newestTime);
 					if(hnewest != null) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
@@ -577,7 +557,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					}
 					else {
 						setParamBinary(floats, url, param, plotidx, hdur, htime, refTime);	
-						if(htime && htime>0) setTime(htime+duration);		// htime better be good
+						if(htime && htime>0) setTimeParam(htime+duration,param);		// set time if first plot/param
 					}
 					
 					// trim audio playback if sliding thru data (after plotting all of it!)
@@ -588,8 +568,6 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					}
 
 					if(stepDir != -2) new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
-//					new audioscan().playPcmChunk(audioRequest.response, estRate);
-
 					if(debug) console.debug("time: "+time+", htime: "+htime+", lastreqTime: "+lastreqTime);
 				}
 //				else console.debug('invalid pcm audio response buffer');
@@ -599,7 +577,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 				if(intervalID && singleStep) plots[plotidx].render(time);			// scroll plots if playing
 				
 				if(intervalID && audioRequest.status != 404) goPause();		// play thru gaps
-				if(refTime=="absolute" && time>0) setTime(time);				// move slider thru gaps
+				if(refTime=="absolute" && time>0) setTimeParam(time,param);			// move slider thru gaps
 				
 				inProgress=0;		// no deadlock
 //				document.body.style.cursor = 'default';		// done with this fetch
@@ -614,6 +592,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 			}
         }
     }
+    
+//    rtime = new Date().getTime();
 	audioRequest.send();		// send the request
 	inProgress++;
 }
@@ -723,9 +703,11 @@ function setParamValue(text, url, args) {
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
 //		setTime(time);		// always set it here?
-		if(time > paramTime[param]) paramTime[param] = time;
+//		if(time > paramTime[param]) 
+			paramTime[param] = time;
 	}
-	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
+//	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
+	else	setTimeParam(reqtime,param);
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
 }
@@ -754,9 +736,10 @@ function setParamText(text, url, args, time) {
 		updateTimeLimits(time);
 		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
 	}
-	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
+//	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
+	else	setTimeParam(reqtime);
 	
-	else if(debug) console.log("setParamText NULL text, url: "+url);
+	if(debug) console.log("setParamText NULL text, url: "+url);
 }
 
 //----------------------------------------------------------------------------------------
@@ -771,52 +754,33 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	
 	inProgress--;
 	
-//	console.debug("duration: "+duration+", getDuration(): "+getDuration());
 	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
-//		var line = plots[pidx].display.lines[param];		// for faster line-creation
-//		line.clear();				// clear old data?
-//		if(duration >= getDuration()) plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
-
 		for(var i=0; i<nval; i++) {
 			time = reqtime + i*dt;
 			plots[pidx].addValue(param,time,values[i]);
-//			plots[pidx].display.putValue(line,time,value[i],i);
 		}
 	}
 	else 	return;		// notta
 
-	if(debug) console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
-//	if(/* singleStep && */ (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
+	if(debug) 
+		console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
+	
 	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
 		if(debug) console.debug('singleStep render(binary), lastreqTime: '+lastreqTime+", tend: "+time);
-//		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
-//		else				
-			plots[pidx].render(0);				// use last point got
-//			plots[pidx].render(reqtime);		// render at got-time
+		plots[pidx].render(0);				// use last point got
+//		plots[pidx].render(reqtime);		// render at got-time
 	} 
 
-//	inProgress--;
-
 	if(inProgress < 0) inProgress=0;		// failsafe
-//	if(inProgress == 0) document.body.style.cursor = 'default';
-	
-//	if((nval > 0) && (refTime!="absolute")) {
-//		setTimeNoSlider(time);
-//		lastgotTime = time;
-//	}
 	
 	if(nval > 0) {
 		var plot0=0;
-//		if(pidx==0 || plots[0].params.length==0 && refTime=="absolute") setTime(time);		// only set time for plot0
-
-//		setTime(time);			// always set it here?
 		lastgotTime = time;
-		if(time > paramTime[param]) paramTime[param] = time;
-		if(debug) console.debug("update lastgotTime: "+lastgotTime+", reqtime: "+reqtime+", duration: "+duration);
+//		if(time > paramTime[param]) 
+			paramTime[param] = time;
 	}
-//	else if(pidx==0 && refTime=="absolute") setTime(reqtime);	// REQUEST time to move slider
 
-	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
+	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+paramTime[param]);
 }
 
 //----------------------------------------------------------------------------------------
@@ -839,13 +803,12 @@ function rtCollection(time) {
 	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
 	
 	// stripchart fetch data on interval
-	var prevgotTime = 0;
 	var prevnewestTime = newestTime;
-
+	
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
 		var anyplots=false;
-		if(inProgress > 0) return;		// ease up?
+//		if(inProgress > 0) return;		// ease up?
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
@@ -895,7 +858,13 @@ function rtCollection(time) {
 						playDelay -= 10;		// catch up...
 					}
 				} 
-				fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
+/*				
+				if(tleft > paramTime[param]) tfetch = tleft;			// adjust fetch on param-basis
+				else	tfetch = paramTime[param];
+				dfetch = 2*dt + tright - tfetch;
+*/				
+//				console.debug('param: '+param+', paramTime: '+(paramTime[param]-playStart)+', tright: '+(tright-playStart)+', tfetch: '+(tfetch-playStart)+', dfetch: '+dfetch+', dt: '+dt);
+				if(dfetch > 0) fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 			}
 		}
 		
@@ -907,7 +876,6 @@ function rtCollection(time) {
 			if(intervalID2==0) goPause();
 			return;
 		}	
-		prevgotTime = lastgotTime;		// for newest/absolute mode request check
 	}
 
 	mDur = getDuration();
@@ -916,7 +884,6 @@ function rtCollection(time) {
 	if(dt > mDur) dt = mDur;			// refresh at least once per screen
 	if(dt <= 100) dt = 100; 
 	intervalID2 = 1;					// so intervalID doesn't pause video before can check		
-//	for(var j=0; j<plots.length; j++) plots[j].start();			
 
 	doRT(dt);		// startup faster without delay
 	intervalID = setInterval(function() {doRT(dt);}, dt);
@@ -931,12 +898,10 @@ function rtCollection(time) {
 		if(intervalID2==0) return;		// fail-safe
 		
 		var ptime = playTime(); // + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
-//		if(ptime <= lastvideoTime) return;			// hasn't progressed enough to matter
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
-//				var param = plots[j].params[0];
 				if(!param) continue;
 //				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
 				if(!endsWith(param,".jpg") && !endsWith(param,".txt")) continue;	// can have mixed .jpg & .wav params!
@@ -1001,62 +966,14 @@ var NCOUNT=20;			// number of updates over which to average sumLag
 
 function playTime() {		// time at which to fetch (msec)
 	var now = new Date().getTime();
-	
-//	if(top.rtflag != RT || rtmode==1) {		// playback mode:  let system-clock drive pace relative to fixed offset
-		var ptime = now - playDelay;					// playFwd
-//		if(rtmode==1) ptime -= getDuration();		// FOO debug
-		if(debug) 
-			console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
-		return ptime;
-//	} else {
-/*		
-		if(debug) 
-			console.debug('RT playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+(now-playDelay)+", newestTime: "+newestTime);
-
-		var ncount = NCOUNT;
-		if(playDelay == 0) { 			// re-init, playDelay reset at each RT start
-			updateNewest();				// this important for DT/WebTurbine that doesn't send newest in HTTP headers
-			sumLag=0; icount=0; ncount=1; 
-		}	
-		
-		// find the oldest-newest time of all active plots (laggiest display channel)
-		var latestTime = oldestNewest();
-		// following finds the oldest-newest only comparing video to non-video (vs all chans)
-//		var latestTime = newestTime;
-		
-//		if(intervalID) latestTime = lastgotTime;
-//		if(intervalID2 && lastvideoTime < lastgotTime) latestTime = lastvideoTime;
-		var lag = now - latestTime;				// coarse estimate lag
-//		if(lag < 0) lag = 0;					// beware inconsistent clocks, now can be less than source data mod time
-		sumLag += lag;
-		
-		icount++;
-		if((icount%ncount)==0) {
-			var avgLag = 0 + sumLag/ncount;
-			if(Math.abs(avgLag) > 100*getDuration()) avgLag = 0;						// way off (at startup?)
-//			if(Math.abs(playDelay - avgLag) > 2*getDuration()) 	playDelay = 100;	// way off; jump adjust (was = avgLag)
-//			else	
-			if(playDelay > avgLag) 	playDelay = 0.7*playDelay + 0.3*avgLag;			// decrease slowly
-			else					playDelay = 0.3*playDelay + 0.7*avgLag;			// increase faster
-			playDelay = playDelay * 0.9;					// keep it from drifting higher?
-//			playDelay += getDuration()/2;					// skootch half a screen older data?
-			
-			if(debug) console.log("------------update playDelay: "+playDelay);
-			if(!playDelay) playDelay = 0;
-			sumLag = 0;
-		}
-
-		if(debug) console.debug("latestTime: "+latestTime+", now: "+now+", lag: "+lag+", playDelay: "+playDelay);
-
-		return (now - playDelay);						// play RT driven forward by now-clock less some lag
-	}
-*/
+	var ptime = now - playDelay;					// playFwd
+	if(debug) console.debug('playTime, now: '+now+', playDelay: '+playDelay+', playTime: '+ptime+", newestTime: "+newestTime);
+	return ptime;
 }
 
+/*
 var oldDuration = 0;
 function playDuration(playtime) {							// duration to fetch (msec)
-//	var pdur = playTime() - getTime();				// get everything from from last pos to playtime
-//	var playtime = playTime();
 	var pdur = playtime - lastgotTime;			// get everything from from last pos to playtime
 													// ISSUE:  this presumes all (stripchart) chans at same lastgotTime
 													// consider book-keeping this on per channel basis?
@@ -1077,6 +994,7 @@ function adjustPlayDelay(inc) {
 	console.debug("increasing playDelay: "+playDelay+" -> "+(playDelay+inc));
 	playDelay += inc;				
 }
+*/
 
 function oldestNewest() {
 //	updateNewest();					// update every time? (shouldn't help with CTserver - updates newest every header)
@@ -1305,7 +1223,7 @@ function AjaxGet(myfunc, url, args) {
 						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime);
 						goPause();	
 					}
-					setTime(time);				// move slider thru gaps
+					setTimeParam(time,param);				// move slider thru gaps
 				}
 			}
 		}
@@ -1724,6 +1642,10 @@ function setTimeNoSlider(time) {
 //	if(debug) console.debug('setTimeNoSlider: '+time);
 }
 
+function setTimeParam(time, param) {
+	if(plots[0].params.length==0 || param==plots[0].params[0]) setTime(time);
+}
+
 function setTime(time) {
 	if(debug) console.debug("setTime: "+time);
 		
@@ -1749,7 +1671,10 @@ function setTimeSlider(time) {
 	if(!isImage) mDur = getDuration();		// duration msec	// try without duration adjust 7/2/15
 	if(mDur > (newestTime-oldestTime)) mDur = newestTime-oldestTime;
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
-	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
+	if(debug) {
+		console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
+		console.trace();
+	}
 	el.value = percent;
 }
 
@@ -3641,7 +3566,7 @@ function vidscan(param) {
         		    	Tlast = T;
         		    	if(debug) console.debug('AjaxGetImage, header Time: '+T);
 //        		    	if(debug) console.debug("param: "+param+", plots[0].params[0]: "+plots[0].params[0]);
-        		    	if(param==plots[0].params[0]) setTime(T);		// ??
+        		    	setTimeParam(T,param);		// set time if first plot/param
         		    	lastmediaTime = T;
 //        	    		setTimeNoSlider(T);
         	    		if(hnewest == null || top.rtflag!=RT) paramTime[param] = T;
