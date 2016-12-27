@@ -1673,7 +1673,7 @@ function setTimeSlider(time) {
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
 	if(debug) {
 		console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
-		console.trace();
+//		console.trace();
 	}
 	el.value = percent;
 }
@@ -3125,14 +3125,23 @@ function plotbox() {
 //  ----------------------------------------------------------------------------------------    
 	// setText: display text in plot box
 	this.setText = function(text) {
+		var lineHeight = 20;
+		var lineMargin = 20;
+
 		var cvs = this.canvas[0];		// first layer
 		var ctx = cvs.getContext('2d');
 		ctx.font = "16px Arial";
-		ctx.clearRect(0,0,cvs.width,cvs.height); 		// clear old image
-		
-		var lineHeight = 20;
-		var lineMargin = 20;
-		var y = lineHeight;
+
+		ctx.beginPath();				// white "paper" box
+		ctx.rect(0, 0, cvs.width, cvs.height);
+		ctx.fillStyle = 'white';
+		ctx.fill();
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = 'black';
+		ctx.stroke();
+
+		ctx.fillStyle = 'black';
+		var y = lineHeight+5;
 		var lines = text.split('\n');
 		var firstLine = lines.length - Math.ceil((cvs.height-20) / lineHeight);	// drop old lines
 		if(firstLine < 0) firstLine = 0;
@@ -3348,7 +3357,8 @@ function vidscan(param) {
 			if(debug) console.debug('reset video_inprogress');
     		this.videoInProgress = 0;
     	}
-		else if(this.videoInProgress>0 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
+		// if return on videoInProgress>0, lose ability to alpha-stack images...
+		else if(this.videoInProgress>2 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
     		if(debug) console.warn('video busy, skipping: '+imgurl+", videoInProgress: "+this.videoInProgress);
 //    		this.videoInProgress = 0;		// single wait?
     		return;						
@@ -3386,7 +3396,7 @@ function vidscan(param) {
     		var ctx = this.canvas.getContext('2d');
 			ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image layer
     		ctx.globalAlpha = alpha;
-//    		console.debug('draw alpha: '+alpha+', canvas: '+this.canvas);
+//    		console.debug('draw alpha: '+alpha+', ilayer: '+ilayer);
     		ctx.drawImage(this,x,y,w,h);
     	}
     	img.onerror = imgerror.bind(this);
