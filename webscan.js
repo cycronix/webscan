@@ -1952,6 +1952,7 @@ function buildCharts() {
 			// create a canvas for each plot box
 			prow = plotTable.insertRow(1);
 			var pcell1 = prow.insertCell(0); 
+			pcell1.style.position="relative";	// position parent of canvas so canvas-absolute is relative to this... ??
 //			var pdiv1 = document.createElement('div');
 //			pcell1.appendChild(pdiv1);					// ??
 			
@@ -1972,11 +1973,13 @@ function buildCharts() {
 				canvas[i].align="center";
 				if(i>0) {
 					canvas[i].style.position="absolute";
-					canvas[i].style.top=pdiv.height;
+					canvas[i].style.top=0; 		// was pdiv.height (undefined)
 					canvas[i].style.left=0;
 				}
 //				if(i==(maxLayer-1)) addListeners(canvas[i]);		// add mouse click event listeners
 				canvas[i].style.zIndex = -1;				// no mouse click on layers
+				canvas[i].style.zIndex = maxLayer - i;		// order alpha on top
+				
 //				pdiv1.appendChild(canvas[i]);
 				pcell1.appendChild(canvas[i]);
 			}
@@ -3003,7 +3006,7 @@ function plotbox() {
 //		else if	(endsWith(param,".mp3") || endsWith(param,".wav")) 	paramtype = 'audio';
 		else if (endsWith(param,"txt"))								paramtype = 'text';
 		else														paramtype = 'stripchart';
-		if(this.type == null) this.type = paramtype; 			// only set type on first param
+		if(this.type == null && paramtype != 'text') this.type = paramtype; 			// only set type on first param
 
 //		if(debug)console.log('addParam: '+param+", type: "+this.type);
 
@@ -3128,7 +3131,7 @@ function plotbox() {
 		var lineHeight = 20;
 		var lineMargin = 20;
 
-		var cvs = this.canvas[0];		// first layer
+		var cvs = this.canvas[maxLayer-1];		// last layer
 		var ctx = cvs.getContext('2d');
 		ctx.font = "16px Arial";
 
@@ -3370,8 +3373,8 @@ function vidscan(param) {
     	
     	if(ilayer >= maxLayer) ilayer = maxLayer-1;		// image layers, extra layers auto-alpha
     	img.canvas = this.canvas[ilayer];
-    	if(ilayer == 0) alpha = 1;
-    	else			alpha = 0.5;
+    	if(ilayer == 0) img.alpha = 1;
+    	else			img.alpha = 0.5;
 //    	if(img.canvas == null) console.debug("OOPS, setImage without canvas!!!");
 //    	this.img.onload = imgload.bind(this);
 
@@ -3395,7 +3398,7 @@ function vidscan(param) {
 
     		var ctx = this.canvas.getContext('2d');
 			ctx.clearRect(0,0,this.canvas.width,this.canvas.height); 		// clear old image layer
-    		ctx.globalAlpha = alpha;
+    		ctx.globalAlpha = this.alpha;
 //    		console.debug('draw alpha: '+alpha+', ilayer: '+ilayer);
     		ctx.drawImage(this,x,y,w,h);
     	}
