@@ -408,6 +408,8 @@ var refreshCount=0;
 function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec)
 	if((typeof(param) == 'undefined') || param == null) return;			// undefined
 	
+	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
+	
 	if(debug) {
 		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 //		console.trace();
@@ -558,7 +560,9 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					}
 					else {
 						setParamBinary(floats, url, param, plotidx, hdur, htime, refTime);	
-						if(htime && htime>0) setTimeParam(htime+duration,param);		// set time if first plot/param
+						// setTime on request only
+//						if(htime && htime>0) setTimeParam(htime+duration,param);		// set time if first plot/param
+						if(top.rtflag==RT || refTime=="oldest" || refTime=="newest") setTime(htime+duration);
 					}
 					
 					// trim audio playback if sliding thru data (after plotting all of it!)
@@ -578,7 +582,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 				if(intervalID && singleStep) plots[plotidx].render(time);			// scroll plots if playing
 				
 				if(intervalID && audioRequest.status != 404) goPause();		// play thru gaps
-				if(refTime=="absolute" && time>0) setTimeParam(time,param);			// move slider thru gaps
+				// setTime on request only
+//				if(refTime=="absolute" && time>0) setTimeParam(time,param);			// move slider thru gaps
 				
 				inProgress=0;		// no deadlock
 //				document.body.style.cursor = 'default';		// done with this fetch
@@ -699,16 +704,23 @@ function setParamValue(text, url, args) {
 
 	if(nval > 0) {
 		lastgotTime = time;
-		if(refTime=="oldest") { setTime(time);	document.getElementById('TimeSelect').value=0; 	  		if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime=oldgotTime; }	
-		else if(refTime=="newest") { setTime(time);	document.getElementById('TimeSelect').value=100;  	if(newgotTime>newestTime) newestTime=newgotTime; }	
+		if(refTime=="oldest") { 
+			setTime(time);	document.getElementById('TimeSelect').value=0; 	  		
+			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime=oldgotTime; 
+		}	
+		else if(refTime=="newest") { 
+			setTime(time);	document.getElementById('TimeSelect').value=100;  	
+			if(newgotTime>newestTime) newestTime=newgotTime; 
+		}	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
+// setTime on request only
+//		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
 //		setTime(time);		// always set it here?
 		if(time > newTime[param]) 
 			newTime[param] = time;
 	}
 //	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
-	else	setTimeParam(reqtime,param);
+//	else	setTimeParam(reqtime,param);
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
 }
@@ -733,12 +745,13 @@ function setParamText(text, url, args, time) {
 		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	 }	
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-		else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);	// only setTime for plot0
+// setTime on request only		
+//		else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);	// only setTime for plot0
 		updateTimeLimits(time);
 		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
 	}
 //	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
-	else	setTimeParam(reqtime);
+//	else	setTimeParam(reqtime);
 	
 	if(debug) console.log("setParamText NULL text, url: "+url);
 }
@@ -893,7 +906,7 @@ function rtCollection(time) {
 	function doRTfast() {
 		if(intervalID2==0) return;		// fail-safe
 		
-		var ptime = playTime(); // + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
+		var ptime = playTime() + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
 			for(var i=0; i<plots[j].params.length; i++) {
@@ -1219,7 +1232,8 @@ function AjaxGet(myfunc, url, args) {
 						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime);
 						goPause();	
 					}
-					setTimeParam(time,param);				// move slider thru gaps
+// setTime on request only
+//					setTimeParam(time,param);				// move slider thru gaps
 				}
 			}
 		}
@@ -1643,7 +1657,10 @@ function setTimeParam(time, param) {
 }
 
 function setTime(time) {
-	if(debug) console.debug("setTime: "+time);
+	if(debug) {
+		console.debug("setTime: "+time);
+//		console.trace();
+	}
 		
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
@@ -1664,7 +1681,8 @@ function setTimeSlider(time) {
 		return;
 	}
 	var mDur = 0.;
-	if(!isImage) mDur = getDuration();		// duration msec	// try without duration adjust 7/2/15
+//	if(!isImage) 					// isImage unreliable global, async.  try always adjust
+		mDur = getDuration();		// duration msec	
 	if(mDur > (newestTime-oldestTime)) mDur = newestTime-oldestTime;
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
 	if(debug) {
@@ -2533,7 +2551,8 @@ function goTime2(percentTime) {
 	}
 	
 	var mDur = 0.;
-	if(!isImage) mDur = getDuration();		// duration msec
+//	if(!isImage) 					// isImage unreliable async global?
+		mDur = getDuration();		// duration msec
 	if(mDur > (newestTime - oldestTime)) mDur = newestTime - oldestTime;
 	
 	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		
@@ -3465,7 +3484,7 @@ function vidscan(param) {
         		}
     		}
 //    		setTimeNoSlider(stime);
-    		setTime(stime);
+//    		setTime(stime);			// setTime on request only
     		if(stime > newTime[param]) 
     			newTime[param] = stime;
     		lastmediaTime = stime;
@@ -3527,7 +3546,9 @@ function vidscan(param) {
 				
     			if(xmlhttp.status==200) {
     				if(debug && isPause()) console.log('AjaxGetImage while paused! url: '+url);
-
+    				var newReq = (url.indexOf("r=newest") != -1);
+    				var oldReq = (url.indexOf("r=oldest") != -1);
+    				
     				var wurl = window.URL || window.webkitURL;
     				var tstamp = this.getResponseHeader("time");								// float sec (with millisecond resolution)
     				var tstamp2 = this.getResponseHeader("Last-Modified");
@@ -3557,7 +3578,7 @@ function vidscan(param) {
     			
     		    	if(tstamp != null) {
     		    		var T = Math.floor(1000*parseFloat(tstamp));
-    		    		if( /* (T > Tnew) || */ hnewest==null && (url.indexOf("r=newest") != -1)) {
+    		    		if(hnewest==null && newReq) {
     		    			Tnew = T;
     		    			if(debug) console.debug("AjaxGetImage, update newest time: "+newestTime+" -> "+T+", url: "+url);
 //        		    		if(T > newestTime || newestTime == 0) 
@@ -3565,7 +3586,7 @@ function vidscan(param) {
     		    		}
     		    		
 //    		    		if((Told==0) || (T < Told) || (url.indexOf("r=oldest") != -1)) Told = oldestTime = T;
-    		    		if(/* (T < Told) || */ holdest==null && (url.indexOf("r=oldest") != -1)) {
+    		    		if(holdest==null && oldReq) {
     		    			Told = T;
 //        		    		if(T < oldestTime || oldestTime == 0) 
     		    			if(T!=0 && (T < oldestTime || oldestTime==0)) {
@@ -3576,7 +3597,8 @@ function vidscan(param) {
         		    	Tlast = T;
         		    	if(debug) console.debug('AjaxGetImage, header Time: '+T);
 //        		    	if(debug) console.debug("param: "+param+", plots[0].params[0]: "+plots[0].params[0]);
-        		    	setTimeParam(T,param);		// set time if first plot/param
+//        		    	setTimeParam(T,param);		// set time if first plot/param
+        		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);
         		    	lastmediaTime = T;
 //        	    		setTimeNoSlider(T);
         	    		if(hnewest == null || top.rtflag!=RT) newTime[param] = T;
