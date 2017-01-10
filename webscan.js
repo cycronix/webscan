@@ -82,8 +82,8 @@ var lastgotTime=0;					// right edge (newest) time
 var lastmediaTime=0;				// most recent fetched video time
 var oldgotTime=0;					// left edge (oldest) time
 var oldestTime=0;					// oldest available time (refTime="oldest")
-var newgotTime=0;					// right edge (newest) time
-var newestTime=0;					// newest available time (refTime="newest")
+var newgotTime=0;					// right edge (newest) time 
+var newestTime=0;					// newest available time (refTime="newest")		(msec)
 var stepDir=0;						// flag which way stepping
 var refreshInProgress=false;		// flag full-refresh collection cycle
 var isTouchSupported=false;
@@ -547,9 +547,9 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					if(hnewest != null) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
-						newTime[param] = newestTime;
+//						newTime[param] = newestTime;
 					}
-					if(newTime[param]==null) newTime[param]= newestTime;		// ??
+//					if(newTime[param]==null) newTime[param]= newestTime;		// ??
 
 					if(debug) console.log("--gotAudio, len: "+floats.length+", duration: "+duration+", estRate: "+estRate+", headerTime: "+htime+", header duration: "+hdur);
 					
@@ -713,10 +713,8 @@ function setParamValue(text, url, args) {
 			if(newgotTime>newestTime) newestTime=newgotTime; 
 		}	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-// setTime on request only
-//		else if(pidx == 0 || plots[0].params.length==0) setTime(time);			// only setTime for plot0
-//		setTime(time);		// always set it here?
-		if(time > newTime[param]) 
+
+//		if(time > newTime[param]) 
 			newTime[param] = time;
 	}
 //	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
@@ -745,13 +743,12 @@ function setParamText(text, url, args, time) {
 		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	 }	
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
-// setTime on request only		
-//		else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);	// only setTime for plot0
 		updateTimeLimits(time);
-		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', reqtime: '+reqtime);
+		if(debug) 
+			console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+newTime[param]);
+//		if(time > newTime[param]) 
+			newTime[param] = time;
 	}
-//	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST vs got time to force slider move
-//	else	setTimeParam(reqtime);
 	
 	if(debug) console.log("setParamText NULL text, url: "+url);
 }
@@ -790,7 +787,7 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	if(nval > 0) {
 		var plot0=0;
 		lastgotTime = time;
-		if(time > newTime[param]) 
+//		if(time > newTime[param]) 
 			newTime[param] = time;
 	}
 
@@ -862,14 +859,17 @@ function rtCollection(time) {
 				
 				if(debug) console.debug('playDelay: '+playDelay+', tright: '+tright+', newestTime: '+newestTime+', paramTime: '+newTime[param]+', param: '+param);
 				if(top.rtflag==RT) {
-					if(!newTime[param]) newTime[param] = newestTime;		// failsafe
-					if(tright > newTime[param]) {			// try newest request if get ahead of newest
+//					if(!newTime[param]) newTime[param] = newestTime;		// failsafe
+//					if(newTime[param] && (tright > newTime[param])) {			// try newest request if get ahead of newest
+					if(tright > newestTime) {
 						AjaxGetParamTimeNewest(param);
-						playDelay = new Date().getTime() - newTime[param];	// increase playDelay if getting ahead
-						if(debug) console.debug('New PLAYDELAY: '+playDelay);
+//						playDelay = new Date().getTime() - newTime[param];		// increase playDelay if getting ahead
+						playDelay = new Date().getTime() - newestTime;			// increase playDelay if getting ahead
+//						if(debug) 
+							console.debug('New PLAYDELAY: '+playDelay);
 					}
 					else {
-						playDelay -= 10;		// catch up...
+//						playDelay -= 10;		// catch up...
 					}
 				} 
 //				console.debug('param: '+param+', paramTime: '+(paramTime[param]-playStart)+', tright: '+(tright-playStart)+', tfetch: '+(tfetch-playStart)+', dfetch: '+dfetch+', dt: '+dt);
@@ -900,6 +900,7 @@ function rtCollection(time) {
 	// ------------------------------ faster video updates:
 	// video RT
 	var prevmediaTime = 0;
+	lastmediaTime = 0;			// reset
 	var slowdownCount = 0;
 	var fastDelay=tDelay/10;
 //	playDelay = 0;
@@ -917,19 +918,21 @@ function rtCollection(time) {
 
 				anyvideo = true;
 				if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
-//				if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
-				if(top.rtflag==RT && ptime > newTime[param]) {					// try newest request if get ahead of newest
+				if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
+//				if(top.rtflag==RT && ptime > newTime[param]) {					// try newest request if get ahead of newest
 
 					if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
 //					fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
 					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
 
 					// increase playDelay if getting ahead
-					playDelay = new Date().getTime() - newTime[param];
+//					playDelay = new Date().getTime() - newTime[param];
+					playDelay = 10*fastDelay + new Date().getTime() - newestTime;
+
 //					if(playDelay > 10*tDelay) playDelay = 0;			// if too much delay, refetch("newest")
 					if(debug) console.debug('New PLAYDELAY: '+playDelay);
 				} else {
-					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', paramTime: '+newTime[param]);
+					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
 					if(endsWith(param,'.txt') && top.rtflag==RT)	
 								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
 					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
@@ -946,7 +949,7 @@ function rtCollection(time) {
 		else {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastmediaTime > prevmediaTime) {
-				prevmediaTime = lastmediaTime;
+//				prevmediaTime = lastmediaTime;
 				slowdownCount=0;
 				intervalID2 = setTimeout(doRTfast,fastDelay);
 			} else {
@@ -962,6 +965,7 @@ function rtCollection(time) {
 					if(intervalID==0) goPause();	// stop if long-time no data
 				}
 			}
+			prevmediaTime = lastmediaTime;
 		}
 	}
 	doRTfast();
@@ -1209,9 +1213,9 @@ function AjaxGet(myfunc, url, args) {
 					if(hnewest != null) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
-						newTime[param] = newestTime;		// for oldest-of-newest RT check
+//						newTime[param] = newestTime;		// for oldest-of-newest RT check
 					}
-					if(newTime[param]==null) newTime[param]= time+duration;
+//					if(newTime[param]==null) newTime[param]= time+duration;
 
 					var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
 				}
@@ -1222,24 +1226,26 @@ function AjaxGet(myfunc, url, args) {
 				if(debug) console.warn('Error on data fetch! '+url+', status: '+xmlhttp.status+", rtflag: "+top.rtflag);
 
 				inProgress=0;		// no deadlock
-//				document.body.style.cursor = 'default';		// done with this fetch
-//				console.log('Error: '+url);
-//				if(top.rtflag!=RT)	goPause();			// stop if playback mode?
-				if(intervalID) { 	//  no warn on shutdown
-					//console.log('stopping??? on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime+", t>n: "+((time+duration)>=newestTime));
-					if(top.rtflag==RT) return;
-					else if(((time+duration) >= newestTime) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {				// keep going (over gaps)
-						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime);
-						goPause();	
+				if(xmlhttp.status != 304) {							// keep going if dupes
+					if(intervalID) { 	//  no warn on shutdown
+						//console.log('stopping??? on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime+", t>n: "+((time+duration)>=newestTime));
+						if(top.rtflag==RT) return;
+						else if(((time+duration) >= newestTime) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {				// keep going (over gaps)
+							if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+time+", newestTime: "+newestTime);
+							goPause();	
+						}
+//						setTimeParam(time,param);				// move slider thru gaps
 					}
-// setTime on request only
-//					setTimeParam(time,param);				// move slider thru gaps
 				}
 			}
 		}
 	};
 	xmlhttp.open("GET",url,true);
-	xmlhttp.onerror = function() { goPause(); alert('xmlhttp error'); };
+	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
+//	if(top.rtflag!=PAUSE && newTime[param] && duration==0.) 
+	if(newTime[param] && duration==0.) 
+		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(newTime[param]) );
+	
 	fetchActive(true);
 	if(pidx!=null) plots[pidx].nfetch++;
 	xmlhttp.send();
@@ -1788,7 +1794,7 @@ function updateOldest() {
 
 function AjaxGetParamTimeNewest(param) {	
 	var xmlhttp=new XMLHttpRequest();
-	var munge = "?dt=s&f=t&r=newest&d=0";
+	var munge = "?dt=s&f=t&r=newest&d=0&refresh="+(new Date().getTime());		// no cache
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
 	
 	xmlhttp.onreadystatechange=function() {
@@ -1798,11 +1804,13 @@ function AjaxGetParamTimeNewest(param) {
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
 				newTime[param] = ptime;
-				if(ptime > newestTime) newestTime = ptime;
-				if(debug) console.debug("AjaxGetParamTime, param: "+param+", time: "+newTime[param]);
+				if(ptime > newestTime) 
+					newestTime = ptime;
+				if(debug) 
+					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]);
 			}
 			else {  				
-	    		newTime[param] = 0;		// out of action
+//	    		newTime[param] = 0;		// out of action
 				console.log('AjaxGetParamTime Error: '+url);
 			}
 		}
@@ -1874,8 +1882,9 @@ function getLimits3() {
 function buildCharts() {
 	refreshInProgress = true;
 	if(debug) console.log('buildCharts: '+plots.length);
-//	newestTime = oldestTime = 0;			// force time limit reset
-	
+//	newestTime = oldestTime = 0;	// force time limit reset
+	newTime = [];					// reset newTime array
+
 	var emsg = 'Your browser does not support HTML5 canvas';
 //	var graphDiv = document.getElementById('graphs');
 
@@ -2455,6 +2464,7 @@ function goStepRvs() {
 function goPause() {
 	reScale = true;
 	stepDir= 0;
+//	newTime = [];					// reset newTime array
 	setPlay(PAUSE,0);			// was ,-1
 	updatePauseDisplay(top.rtflag);
 }
@@ -3470,7 +3480,7 @@ function vidscan(param) {
     	if(debug) console.debug("image.setTime: "+imgurl);
     	AjaxGetV(imageSetTime, imgurl+"&dt=s&f=t", param);
     	function imageSetTime(txt) {
-    		stime = Math.floor(1000*parseFloat(txt));
+    		stime = Math.floor(1000*parseFloat(txt));		// msec
     		if(imgurl.indexOf("r=newest") != -1) { 
     			Tnew = stime;  
 //        		if(Tnew > newestTime || newestTime == 0) 
@@ -3483,9 +3493,8 @@ function vidscan(param) {
         			oldestTime = Told;
         		}
     		}
-//    		setTimeNoSlider(stime);
-//    		setTime(stime);			// setTime on request only
-    		if(stime > newTime[param]) 
+
+//    		if(stime > newTime[param]) 
     			newTime[param] = stime;
     		lastmediaTime = stime;
     	}
@@ -3505,12 +3514,8 @@ function vidscan(param) {
     				myfunc(xmlhttp.responseText, url, args);
     			}
     			else {
-    				if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
-    	    		else if(url.indexOf("r=prev") != -1) newTime[param] = 0;   				
-//    	    		paramTime[param] = -1;		// out of action
-//  				console.log('Error: '+url);
-// following alert can be deadly lock-up loop on ipad:  add status field to display?
-//    				alert('Error on data fetch! '+url+', status: '+xmlhttp.status);
+//    				if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
+//    	    		else if(url.indexOf("r=prev") != -1) newTime[param] = 0;   				
     			}
     		}
     	};
@@ -3530,6 +3535,7 @@ function vidscan(param) {
     this.AjaxGetImage = function(url,img,param) { 
 		
     	if(debug) console.log('AjaxGetImage, url: '+url);
+    	
 //    	if(this.nreq > 2) return;		// drop frames if getting behind...
     	var instance = this;			// for reference inside onreadystatechange function
     	var xmlhttp=new XMLHttpRequest();
@@ -3571,7 +3577,7 @@ function vidscan(param) {
     				if(hnewest != null) {
     					var Tnew = 1000 * Number(hnewest);
     					if(Tnew > newestTime) newestTime = Tnew;
-						newTime[param] = newestTime;
+//						newTime[param] = newestTime;
     				}
 
     		    	if(debug) console.debug('AjaxGetImage, tstamp: '+tstamp+", holdest: "+holdest+", hnewest: "+hnewest);
@@ -3596,15 +3602,12 @@ function vidscan(param) {
     		    		
         		    	Tlast = T;
         		    	if(debug) console.debug('AjaxGetImage, header Time: '+T);
-//        		    	if(debug) console.debug("param: "+param+", plots[0].params[0]: "+plots[0].params[0]);
-//        		    	setTimeParam(T,param);		// set time if first plot/param
         		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);
         		    	lastmediaTime = T;
-//        	    		setTimeNoSlider(T);
-        	    		if(hnewest == null || top.rtflag!=RT) newTime[param] = T;
+//        	    		if(hnewest == null || top.rtflag!=RT) 
+        		    	newTime[param] = T;
     		    	}
     		    	else {	// update time limits if not provided in HTTP header
-//    		    		url = url.split('?',1);
     		    		url = url.replace("dt=b","dt=s");
     		    		url = url.replace("f=b","f=t");
     		    		setImageTime(url,param);
@@ -3612,21 +3615,26 @@ function vidscan(param) {
     			}
     			else {
     				if(debug) console.log('Warning, xmlhttp.status: '+xmlhttp.status);
-    				if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
-    	    		else if(url.indexOf("r=prev") != -1) newTime[param] = 0; 
-    				
-					else if((getTime() >= newestTime && top.rtflag!=RT) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
-						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+getTime()+", newestTime: "+newestTime);
-						goPause();
-					}
-//    				if(top.rtflag==RT) adjustPlayDelay(100);    			// need?	
-    				// following alert can be deadly lock-up loop on ipad:  add status field to display?
-//    				alert('Error on image fetch! '+url+', status: '+xmlhttp.status);
+    				if(xmlhttp.status != 304) {			// skip over dupes
+//    					if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
+//    					else if(url.indexOf("r=prev") != -1) newTime[param] = 0; 
+//    					else 
+    					if((getTime() >= newestTime && top.rtflag!=RT) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
+    						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+getTime()+", newestTime: "+newestTime);
+    						goPause();
+    					}
+    				}
     			}
     		}
     	}
+    	
+    	// HTTP GET
     	xmlhttp.open("GET",url,true);
     	xmlhttp.responseType = 'blob';
+//    	if(top.rtflag!=PAUSE && newTime[param]) 
+    	if(newTime[param])
+    		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(newTime[param]) );
+    	
     	fetchActive(true);
     	xmlhttp.send();
 //    	nreq++;
