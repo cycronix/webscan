@@ -410,7 +410,8 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
 	
-	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
+	if(debug) 
+		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	
@@ -548,7 +549,10 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 //						newTime[param] = newestTime;
 					}
 //					if(newTime[param]==null) newTime[param]= newestTime;		// ??
-
+					var ntime = htime + hdur;		// update refs (in case audio played but not strip-plotted)
+					newTime[param] = ntime;
+					if(ntime > newestTime) newestTime = ntime;
+						
 					if(debug) console.log("--gotAudio, len: "+floats.length+", duration: "+duration+", estRate: "+estRate+", headerTime: "+htime+", header duration: "+hdur);
 					
 					if(duration == 0) {		// no display on limit checks
@@ -714,6 +718,7 @@ function setParamValue(text, url, args) {
 
 //		if(time > newTime[param]) 
 			newTime[param] = time;
+//			console.debug('set newTime['+param+']: '+time);
 	}
 //	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
 //	else	setTimeParam(reqtime,param);
@@ -813,7 +818,8 @@ function rtCollection(time) {
 	
 	// stripchart fetch data on interval
 	var prevnewestTime = newestTime;
-	
+	newTime = [];		// reset
+
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
 		var anyplots=false;
@@ -824,6 +830,8 @@ function rtCollection(time) {
 		var skootch = tDelay / 2.;
 		
 		var tright = playTime() - skootch;				// right-edge time (skootched for lip-sync?)
+		
+		/*
 		var tleft = tright - pDur;						// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
@@ -833,6 +841,7 @@ function rtCollection(time) {
 		if(debug) 
 			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 		if(dfetch <= 0) return;		// nothing new
+		*/
 		
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
@@ -858,8 +867,15 @@ function rtCollection(time) {
 				
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 				anyplots=true;	
+						
+				// try per-param fetches...
+				var tleft = tright - pDur;							// left-edge time
+				tfetch = tleft;
+				if(newTime[param] && tfetch < newTime[param]) tfetch = newTime[param];	// unless already have some (gapless)
+				var dfetch = 1.5*dt + (tright - tfetch);			// fetch enough to go past tright (was 1.1)
+				if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', paramTime: '+newTime[param]+', tright: '+tright);
+				// endof per-param fetch logic
 				
-				if(debug) console.debug('playDelay: '+playDelay+', tright: '+tright+', newestTime: '+newestTime+', paramTime: '+newTime[param]+', param: '+param);
 				if(top.rtflag==RT) {
 //					if(!newTime[param]) newTime[param] = newestTime;		// failsafe
 //					if(newTime[param] && (tright > newTime[param])) {			// try newest request if get ahead of newest
