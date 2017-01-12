@@ -410,10 +410,8 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
 	
-	if(debug) {
-		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
-//		console.trace();
-	}
+	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
+
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	
 	isImage = endsWith(param, ".jpg");	// this is a global, affects logic based on last-plot (still issue with mixed stripcharts/images)
@@ -823,15 +821,17 @@ function rtCollection(time) {
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
-
-		var tright = playTime();						// right-edge time 
+		var skootch = tDelay / 2.;
+		
+		var tright = playTime() - skootch;				// right-edge time (skootched for lip-sync?)
 		var tleft = tright - pDur;						// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
 		var dfetch = 2*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
 
-		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+(tfetch-playStart)+', tleft: '+(tleft-playStart)+', lastgotTime: '+(lastgotTime-playStart)+', tright: '+(tright-playStart));
+		if(debug) 
+			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 		if(dfetch <= 0) return;		// nothing new
 		
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
@@ -849,8 +849,10 @@ function rtCollection(time) {
 		}
 		
 		for(var j=0; j<plots.length; j++) {
-			plots[j].setDelay(playDelay);			// sets smoothie plot delay
-						
+//			if(top.rtflag != RT) 	
+					plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
+//			else	plots[j].setDelay(playDelay+dt);				// RT gets more lead-time?
+			
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
 				
@@ -865,8 +867,7 @@ function rtCollection(time) {
 						AjaxGetParamTimeNewest(param);
 //						playDelay = new Date().getTime() - newTime[param];		// increase playDelay if getting ahead
 						playDelay = new Date().getTime() - newestTime;			// increase playDelay if getting ahead
-//						if(debug) 
-							console.debug('New PLAYDELAY: '+playDelay);
+						if(debug) console.debug('New PLAYDELAY: '+playDelay);
 					}
 					else {
 //						playDelay -= 10;		// catch up...
@@ -886,7 +887,7 @@ function rtCollection(time) {
 			return;
 		}	
 	}
-
+	
 	mDur = getDuration();
 	singleStep = true;									// initiate scrolling mode
 	var dt = tDelay;
@@ -903,11 +904,17 @@ function rtCollection(time) {
 	lastmediaTime = 0;			// reset
 	var slowdownCount = 0;
 	var fastDelay=tDelay/10;
+	if(top.rtflag==RT) {
+		playDelay = 0;
+		newTime = [];		// reset
+	}
+	
 //	playDelay = 0;
 	function doRTfast() {
 		if(intervalID2==0) return;		// fail-safe
 		
-		var ptime = playTime() + getDuration()/2;	// video at mid-duration of plot (better audio sync)	
+		var ptime = playTime();		
+//		if(intervalID != 0) ptime = ptime + getDuration()/2;	// video at mid-duration of plot (better audio sync)
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
 			for(var i=0; i<plots[j].params.length; i++) {
@@ -916,24 +923,24 @@ function rtCollection(time) {
 //				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
 				if(!endsWith(param,".jpg") && !endsWith(param,".txt")) continue;	// can have mixed .jpg & .wav params!
 
-				anyvideo = true;
-				if(debug) console.debug("video fetch ptime: "+ptime+", lastvideoTime: "+lastmediaTime);
-				if(top.rtflag==RT && ptime > newestTime) {						// try newest request if get ahead of newest
-//				if(top.rtflag==RT && ptime > newTime[param]) {					// try newest request if get ahead of newest
+				if(top.rtflag==RT) {
+//					AjaxGetParamTimeNewest(param);			// get newest every loop????
+					if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime+', playDelay: '+playDelay);
+				}
 
-					if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
-//					fetchData(plots[j].params[0], j, 0, 0, "newest");			// RT newest mode (overlap/inefficient)	
+				anyvideo = true;
+				if(debug) console.debug("video fetch ptime: "+ptime+", playDelay: "+playDelay);
+				if(top.rtflag==RT && (ptime > newestTime) && newTime[param]) {	// try newest request if get ahead of newest
 					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
 
 					// increase playDelay if getting ahead
-//					playDelay = new Date().getTime() - newTime[param];
-					playDelay = 10*fastDelay + new Date().getTime() - newestTime;
-
-//					if(playDelay > 10*tDelay) playDelay = 0;			// if too much delay, refetch("newest")
-					if(debug) console.debug('New PLAYDELAY: '+playDelay);
+					var tplayDelay = new Date().getTime() - newestTime;	
+					if(tplayDelay > playDelay) playDelay = tplayDelay;
+					
+					if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay+', paramTime: '+newTime[param]);
 				} else {
 					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
-					if(endsWith(param,'.txt') && top.rtflag==RT)	
+					if(endsWith(param,'.txt') && top.rtflag==RT || !newTime[param])	
 								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
 					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
 				}
@@ -950,6 +957,7 @@ function rtCollection(time) {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastmediaTime > prevmediaTime) {
 //				prevmediaTime = lastmediaTime;
+				if(top.rtflag==RT && slowdownCount > 10) playDelay = new Date().getTime() - newestTime;	// reset?
 				slowdownCount=0;
 				intervalID2 = setTimeout(doRTfast,fastDelay);
 			} else {
@@ -1128,17 +1136,18 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 		if(debug) console.debug('>>> time: '+time+', oldestTime: '+oldestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 	}
 
-	for(var j=0; j<plots.length; j++) {				// get data once each plot
-		plots[j].dropdata();
-		plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
-		for(var i=0; i<plots[j].params.length; i++) {
-//			console.debug('refresh fetch time: '+time+", dur: "+fetchdur);
-			var isImage = endsWith(plots[j].params[i], ".jpg")
-			if(isImage) fetchData(plots[j].params[i], j, fetchdur, time, reftime);			// fetch new data (async)
-			else 		fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
+	if(onestep) {		// prefetch only if onestep?
+		for(var j=0; j<plots.length; j++) {				// get data once each plot
+			plots[j].dropdata();
+			plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
+			for(var i=0; i<plots[j].params.length; i++) {
+//				console.debug('refresh fetch time: '+time+", dur: "+fetchdur);
+				var isImage = endsWith(plots[j].params[i], ".jpg")
+				if(isImage) fetchData(plots[j].params[i], j, fetchdur, time, reftime);			// fetch new data (async)
+				else 		fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
+			}	
 		}	
-	}	
-
+	}
 	refreshCollection3(100,onestep,time,fetchdur,reftime);		// queue restart
 }
 
@@ -1807,7 +1816,7 @@ function AjaxGetParamTimeNewest(param) {
 				if(ptime > newestTime) 
 					newestTime = ptime;
 				if(debug) 
-					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]);
+					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]+", newestTime: "+newestTime);
 			}
 			else {  				
 //	    		newTime[param] = 0;		// out of action
@@ -3214,7 +3223,7 @@ function audioscan() {
 
 //		TO DO:  use audio in audio.wav (vs pcm) format, then skip the createBuffer() call which is not implemented on IOS
 		if(audio.length <= 0) {
-			console.warn("playPcmChunk zero length audio!");
+			if(debug) console.warn("playPcmChunk zero length audio!");
 			inProgress=0;
 			return;
 		}
@@ -3614,6 +3623,7 @@ function vidscan(param) {
     		    	}
     			}
     			else {
+    				if(debug && xmlhttp.status == 304) console.debug('got dupe for: '+url);
     				if(debug) console.log('Warning, xmlhttp.status: '+xmlhttp.status);
     				if(xmlhttp.status != 304) {			// skip over dupes
 //    					if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
