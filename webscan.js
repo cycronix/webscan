@@ -2756,7 +2756,7 @@ function plot() {
 		if((value!=undefined) && !isNaN(value)) { 	// possible with slow initial fetch
 			var line = this.lines[param];
 //			console.debug('addValue, param: '+param+', line.length: '+line.data.length);
-			var nosort=true;
+			var nosort=false;	// nosort causes smoothie plot glitches!
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
 				line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
