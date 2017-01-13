@@ -387,7 +387,8 @@ function setCols(ncol) {
 //setScaling:  initialize scalingMode
 
 function setScaling(scaling) {
-	scalingMode = "Standard";
+//	scalingMode = "Standard";
+	scalingMode = "Auto";
 	if(scaling == 't') scalingMode = "Tight";
 	else if(scaling == 'm') scalingMode = "Manual";
 	else if(scaling == 'a') scalingMode = "Auto"
@@ -2692,7 +2693,9 @@ function plot() {
 		else if(aval > 20) 	prec=0;
 		else if(aval > 1)  	prec=1;
 		else 				prec = Math.ceil(-Math.log(aval)/Math.LN10);
-		if(scalingMode != "Standard") prec = prec+1;		// need more digits if tight scaling
+		if(scalingMode != "Auto") prec = prec+3;		// need more digits if tight scaling
+		else					  prec = prec+1;		// at least get a bit more
+		
 		if(prec < 0 || prec > 5) Precision=5;
 	      
 	    valStr = parseFloat(val).toFixed(prec);
