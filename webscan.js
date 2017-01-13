@@ -808,14 +808,16 @@ var playStart=0;
 function rtCollection(time) {
 	stopRT();
 	inProgress = 0;		// reset
+	lastgotTime = 0;
 	playStart = time;
 	if(time != 0 && top.rtflag != RT) 
 			playDelay = (new Date().getTime() - time);		// playback mode
 //	else 	playDelay = 0.;
 	else 	playDelay = (new Date().getTime() - newestTime);
 
-	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
-	
+	if(debug) 
+		console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
+		
 	// stripchart fetch data on interval
 	var prevnewestTime = newestTime;
 	newTime = [];		// reset
@@ -827,21 +829,23 @@ function rtCollection(time) {
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
-		var skootch = tDelay / 2.;
+		var skootch = 1.5*dt;			// this hides right-side stripchart data gaps
+//		skootch = 0;			// ??
 		
-		var tright = playTime() - skootch;				// right-edge time (skootched for lip-sync?)
+		var tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
 		
-		/*
+		// global timing logic:
 		var tleft = tright - pDur;						// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
-		var dfetch = 2*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
-
+//		var dfetch = 1.5*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
+		var dfetch = 0.1*dt + tright - tfetch;			// very little extra (avoid audio overlap)
+		
 		if(debug) 
 			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
-		if(dfetch <= 0) return;		// nothing new
-		*/
+//		if(dfetch <= 0) return;		// nothing new
+		
 		
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
@@ -869,11 +873,16 @@ function rtCollection(time) {
 				anyplots=true;	
 						
 				// try per-param fetches...
+				/*
 				var tleft = tright - pDur;							// left-edge time
 				tfetch = tleft;
 				if(newTime[param] && tfetch < newTime[param]) tfetch = newTime[param];	// unless already have some (gapless)
 				var dfetch = 1.5*dt + (tright - tfetch);			// fetch enough to go past tright (was 1.1)
-				if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', paramTime: '+newTime[param]+', tright: '+tright);
+//				if(endsWith(param,".wav")) dfetch = tright - tfetch;		// no overlap audio?
+
+//				if(debug) 
+					console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', paramTime: '+newTime[param]+', tright: '+tright);
+					*/
 				// endof per-param fetch logic
 				
 				if(top.rtflag==RT) {
@@ -1759,7 +1768,6 @@ function resetLimits(pplot) {
 	for(var i=0; i<plots[pplot].params.length; i++) {
 		AjaxGetParamTimeNewest(plots[pplot].params[i]);
 		AjaxGetParamTimeOldest(plots[pplot].params[i]);
-
 	}
 
 //	document.getElementById('TimeSelect').value = 100;		// peg slider
