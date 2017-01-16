@@ -956,17 +956,19 @@ function rtCollection(time) {
 
 				anyvideo = true;
 				if(debug) console.debug("video fetch ptime: "+ptime+", playDelay: "+playDelay);
-				if(top.rtflag==RT && (ptime > newestTime) && newTime[param]) {	// try newest request if get ahead of newest
+//				if(top.rtflag==RT && (ptime > newestTime) && newTime[param]) {	// try newest request if get ahead of newest
+				if(top.rtflag==RT && (ptime > newestTime)) {	// try newest request if get ahead of newest
 					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
 
 					// increase playDelay if getting ahead
 					var tplayDelay = new Date().getTime() - newestTime;	
 					if(tplayDelay > playDelay) playDelay = tplayDelay;
 					
-					if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay+', paramTime: '+newTime[param]);
+					if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
 				} else {
 					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
-					if(endsWith(param,'.txt') && top.rtflag==RT || !newTime[param])	
+//					if(endsWith(param,'.txt') && top.rtflag==RT || !newTime[param])	
+					if(endsWith(param,'.txt') && top.rtflag==RT)	
 								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
 					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
 				}
@@ -3571,7 +3573,7 @@ function vidscan(param) {
     this.AjaxGetImage = function(url,img,param) { 
 		
     	if(debug) console.log('AjaxGetImage, url: '+url);
-    	
+		
 //    	if(this.nreq > 2) return;		// drop frames if getting behind...
     	var instance = this;			// for reference inside onreadystatechange function
     	var xmlhttp=new XMLHttpRequest();
