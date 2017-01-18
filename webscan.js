@@ -165,7 +165,6 @@ function setDivSize() {
 	document.getElementById('dgraphs').style.top = top+"px";
 //	document.getElementById('dgraphs').style.bottom = ch+"px";
 	document.getElementById('dgraphs').style.bottom=(wrap-bot)+"px";
-//	console.log('resize, top: '+top+', bot: '+bot+', h: '+wrap+', newsize: '+(wrap-bot));
 }
 
 //----------------------------------------------------------------------------------------
@@ -206,10 +205,7 @@ function getURLParam(uri, key) {
 // return URL of local window or parent window if embedded iframe
 function myURL() {
 	var myurl = (window.location != window.parent.location) ? window.parent.location : window.location;
-//	console.debug('myURL: '+myurl+', window.location: '+window.location+', window.parent.location: '+window.parent.location);
-//	console.debug('top.document.URL: '+top.document.URL);
 	return window.location;			// just return iframe url to get params!
-//	return myurl;
 }
 
 //----------------------------------------------------------------------------------------
@@ -305,7 +301,6 @@ function configParams(src) {
 
 	// RT mode (one-shot param)
 	var irtm  	 = getURLParam(src,'rt'); 	if(irtm!=null) rtmode=Number(irtm);
-	
 //	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
 	
 	for(var i=0; i<nplot; i++) {
@@ -415,7 +410,6 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
-	
 	isImage = endsWith(param, ".jpg");	// this is a global, affects logic based on last-plot (still issue with mixed stripcharts/images)
 	
 	// audio with video: fetch as binary
@@ -489,10 +483,8 @@ function endsWith(str, suffix) {
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function setAudio(url, param, plotidx, duration, time, refTime) {
-	if(debug) 
-		console.log("setAudio: "+url+", refTime: "+refTime);
+	if(debug) console.log("setAudio: "+url+", refTime: "+refTime);
 
-//	var rtime = new Date().getTime();		// request time
 	var audioRequest = new XMLHttpRequest();
 	audioRequest.open('GET', url, true); 				//	open the request...
 	audioRequest.responseType = 'arraybuffer';			// binary response
@@ -505,7 +497,6 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
     audioRequest.onreadystatechange = function () {
         if (audioRequest.readyState == 4) {
 			if(audioRequest.status==200) {
-//				console.debug("audio fetch time: "+(new Date().getTime() - rtime)+', pts: '+audioRequest.response.byteLength+', url: '+url);
 				if(audioRequest.response.byteLength > 1) {
 
 					var buffer = new Int16Array(audioRequest.response);
@@ -516,12 +507,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					else				estRate = 8000;
 					
 					var floats = new Array();
-//					var floats = new ArrayBuffer(nval);		// mjm try ArrayBuffer vs Array?
-//					var floats = audioContext.createBuffer(1, nval, estRate);
-
 //					if((top.rtflag==PAUSE) && ((nval / estRate) > 0.2)) nval = 0.2 * estRate;		// limit audio snips to 0.2sec if manually scrolling
 					for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
-//					for(var i=0; i<nval; i++) floats[i] = buffer[i] / 32768.;
 					// pull info out of header if available
 					var htime = audioRequest.getResponseHeader("time");		
 					if(htime != null) 	htime = 1000 * Number(htime);			// sec -> msec
@@ -535,7 +522,6 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					else			  	hdur = duration;
 
 					var holdest = audioRequest.getResponseHeader("oldest");	
-//					if(holdest != null) oldestTime = 1000 * Number(holdest);	// just set it, worry about multi-chan consistency later...
 					if(holdest != null) {
 						var Told = 1000 * Number(holdest);
 						if(Told != 0 && (Told < oldestTime || oldestTime==0)) { 
@@ -547,9 +533,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					if(hnewest != null) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
-//						newTime[param] = newestTime;
 					}
-//					if(newTime[param]==null) newTime[param]= newestTime;		// ??
 					var ntime = htime + hdur;		// update refs (in case audio played but not strip-plotted)
 					newTime[param] = ntime;
 					if(ntime > newestTime) newestTime = ntime;
@@ -589,7 +573,6 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 //				if(refTime=="absolute" && time>0) setTimeParam(time,param);			// move slider thru gaps
 				
 				inProgress=0;		// no deadlock
-//				document.body.style.cursor = 'default';		// done with this fetch
 				if(intervalID) { 	//  no warn on shutdown
 					if(top.rtflag==RT) return;
 					else if(((time+duration) >= newestTime) || (audioRequest.status != 410 && audioRequest.status != 404)) {				// keep going (over gaps)
@@ -626,8 +609,6 @@ function setAudioByType(url,type) {
 				var tstamp = audioRequest.getResponseHeader("time");
 		    	if(tstamp != null) {
 		    		var T = Math.floor(1000*parseFloat(tstamp));
-//		    		if((T > newestTime) || (url.indexOf("r=newest") != -1)) newestTime = T;
-//		    		if((T < oldestTime) || (url.indexOf("r=oldest") != -1)) oldestTime = T;
 		    		if(T > newestTime) newestTime = T;
 		    		if((T < oldestTime) && (T!=0)) {
 		    			oldestTime = T;
@@ -664,13 +645,7 @@ function setParamValue(text, url, args) {
 	datavals = datavals.filter(function(s) { return s.length > 0; } );
 	var nval = datavals.length;		// presume last is blank?
 	
-//	console.debug("duration: "+duration+", getDuration(): "+getDuration());
 	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
-//		var line = null;
-//		if(duration >= getDuration()) {
-//			line = plots[pidx].display.lines[param];		// for faster line-creation?  (can't see a difference)
-//			line.clear();	// clear old data?
-//		}
 		if(duration >= getDuration() && top.rtflag==PAUSE) {
 			if(debug) console.debug("setParamValue, clear line, top.rtflag: "+top.rtflag);
 			plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
@@ -685,9 +660,7 @@ function setParamValue(text, url, args) {
 			else			 time = ttime;
 			if(time < oldgotTime) oldgotTime=time;
 			if(time > newgotTime) newgotTime=time;
-//			if(line) plots[pidx].display.putValue(line,time,value,i);
-//			else	 
-				plots[pidx].addValue(param,time,value);
+			plots[pidx].addValue(param,time,value);
 		}
 	}
 	else return;		// notta
@@ -717,12 +690,8 @@ function setParamValue(text, url, args) {
 		}	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 
-//		if(time > newTime[param]) 
-			newTime[param] = time;
-//			console.debug('set newTime['+param+']: '+time);
+		newTime[param] = time;
 	}
-//	else if(pidx == 0 || plots[0].params.length==0) setTime(reqtime);		// REQUEST time to move slider over gaps
-//	else	setTimeParam(reqtime,param);
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
 }
@@ -783,7 +752,6 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
 		if(debug) console.debug('singleStep render(binary), lastreqTime: '+lastreqTime+", tend: "+time);
 		plots[pidx].render(0);				// use last point got
-//		plots[pidx].render(reqtime);		// render at got-time
 	} 
 
 	if(inProgress < 0) inProgress=0;		// failsafe
@@ -826,12 +794,10 @@ function rtCollection(time) {
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
 		var anyplots=false;
-//		if(inProgress > 0) return;		// ease up?
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
 		var skootch = 1.5*dt;			// this hides right-side stripchart data gaps
-//		skootch = 0;			// ??
 		
 		var tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
 		
@@ -846,7 +812,6 @@ function rtCollection(time) {
 		if(debug) 
 			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 //		if(dfetch <= 0) return;		// nothing new
-		
 		
 		if(singleStep) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
@@ -863,43 +828,21 @@ function rtCollection(time) {
 		}
 		
 		for(var j=0; j<plots.length; j++) {
-//			if(top.rtflag != RT) 	
-					plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
-//			else	plots[j].setDelay(playDelay+dt);				// RT gets more lead-time?
+			plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
 			
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
 				
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 				anyplots=true;	
-						
-				// try per-param fetches...
-				/*
-				var tleft = tright - pDur;							// left-edge time
-				tfetch = tleft;
-				if(newTime[param] && tfetch < newTime[param]) tfetch = newTime[param];	// unless already have some (gapless)
-				var dfetch = 1.5*dt + (tright - tfetch);			// fetch enough to go past tright (was 1.1)
-//				if(endsWith(param,".wav")) dfetch = tright - tfetch;		// no overlap audio?
-
-//				if(debug) 
-					console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', paramTime: '+newTime[param]+', tright: '+tright);
-					*/
-				// endof per-param fetch logic
 				
 				if(top.rtflag==RT) {
-//					if(!newTime[param]) newTime[param] = newestTime;		// failsafe
-//					if(newTime[param] && (tright > newTime[param])) {			// try newest request if get ahead of newest
 					if(tright > newestTime) {
 						AjaxGetParamTimeNewest(param);
-//						playDelay = new Date().getTime() - newTime[param];		// increase playDelay if getting ahead
 						playDelay = new Date().getTime() - newestTime;			// increase playDelay if getting ahead
 						if(debug) console.debug('New PLAYDELAY: '+playDelay);
 					}
-					else {
-//						playDelay -= 10;		// catch up...
-					}
 				} 
-//				console.debug('param: '+param+', paramTime: '+(paramTime[param]-playStart)+', tright: '+(tright-playStart)+', tfetch: '+(tfetch-playStart)+', dfetch: '+dfetch+', dt: '+dt);
 				if(dfetch > 0) fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 			}
 		}
@@ -1020,31 +963,6 @@ function playTime() {		// time at which to fetch (msec)
 	return ptime;
 }
 
-/*
-var oldDuration = 0;
-function playDuration(playtime) {							// duration to fetch (msec)
-	var pdur = playtime - lastgotTime;			// get everything from from last pos to playtime
-													// ISSUE:  this presumes all (stripchart) chans at same lastgotTime
-													// consider book-keeping this on per channel basis?
-
-	var mdur = 2*getDuration();		// msec
-	if(pdur > mdur) {
-		if(debug) console.debug("playDuration limiting pdur: "+pdur+", to mdur: "+mdur);
-		pdur = mdur;					// limit to one screen worth
-	}
-	
-	if(pdur < 0) pdur = mdur;					// initialization glitch?
-	if(debug) console.log('pdur: '+pdur+", playTime: "+playtime+", lastgotTime: "+lastgotTime+", mdur: "+mdur+", playDelay: "+playDelay);
-	return pdur;
-}
-
-// set playDelay (lag from RT) 
-function adjustPlayDelay(inc) {
-	console.debug("increasing playDelay: "+playDelay+" -> "+(playDelay+inc));
-	playDelay += inc;				
-}
-*/
-
 function oldestNewest() {
 //	updateNewest();					// update every time? (shouldn't help with CTserver - updates newest every header)
 	var oldnew = 0;
@@ -1112,10 +1030,7 @@ function stepCollection(iplot, time, refdir) {
 	}
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
-//	console.debug('stepCollection, url: '+url+', idx: '+idx+', iplot: '+iplot);
 	plots[iplot].display.setImage(url,param,0);
-	
-//	refreshCollection(true, getTime(), getDuration(), refdir);	
 }
 
 //----------------------------------------------------------------------------------------
@@ -1126,22 +1041,18 @@ function refreshCollection(onestep, time, fetchdur, reftime) {
 	refreshInProgress=true;
 	if(debug) {
 		console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep);
-//		console.trace();
 	}
 
-//	if(reftime=="absolute") time = getTime() - getDuration();		// adjust RE time to LE time
 	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
 }
 
 function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 	refreshInProgress=true;
-//	if(inProgress && maxwait>=0) { 		// wait til paused
 	if(inProgress) { 		// wait til paused
 		setTimeout(function(){refreshCollection2(--maxwait, onestep, time, fetchdur, reftime);}, 100); 
 		return; 
 	}	
-//	console.log('refreshCollection2: reftime: '+reftime);
 
 	var duration = document.getElementById("myDuration");
 	var fetchdur = 1000. * parseFloat(duration.options[duration.selectedIndex].value);
@@ -1169,7 +1080,6 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 			plots[j].dropdata();
 			plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
 			for(var i=0; i<plots[j].params.length; i++) {
-//				console.debug('refresh fetch time: '+time+", dur: "+fetchdur);
 				var isImage = endsWith(plots[j].params[i], ".jpg")
 				if(isImage) fetchData(plots[j].params[i], j, fetchdur, time, reftime);			// fetch new data (async)
 				else 		fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
@@ -1195,18 +1105,10 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 			if(reftime != "newest") updatePauseDisplay(PAUSE);
 		}
 		else {
-//			console.log('setPlayRT time: '+time);
 			setPlay(RT,getTime());					// go (restarts RT collection + plots)
 		}
 	}
 	
-	if(!onestep) {
-//		singleStep=true;					// foo, non-smooth
-//		rtCollection(getTime());
-//		setPause(false,getTime());			// loses data on plot.start?
-	}
-
-//	document.body.style.cursor = 'default';
 	refreshInProgress=false;
 	resetMode=false;
 	
@@ -1301,25 +1203,18 @@ function fetchChanList() {
 //parseWT:  parse links from WebTurbine HTML page
 
 function parseWT(page,url,selel) {
-//	console.debug('parseWT: url: '+url);
 	var el = document.createElement('div');
 	el.innerHTML = page;
 	var x = el.getElementsByTagName('a');
 	for(var i=1; i<x.length; i++) {		// skip href[0]="..."
 		var opt = x.item(i).textContent;	// not .text
 		if(opt == '_Log/') continue;		// skip log text chans
-//		opt.replace("//","/");				// collapse any double slash to single ('//' -> '/)
 		if(endsWith(opt, "/")) {
-//			AjaxGet(parseWT,url+"/"+opt,"chanList");		// chase down multi-part names
 			AjaxGet(parseWT,url+"/"+opt,null);				// chase down multi-part names
 		} else {										// Channel
 			var fullchan = url+opt;
 			fullchan = fullchan.substring(fullchan.indexOf(servletRoot)+servletRoot.length+1);
 			fullchan = fullchan.split("//").join("/");		// replace any double-slash with single
-//			console.log('got: url: '+url+', txt: '+opt+', fullchan: '+fullchan);
-//			var chanparts = (url+opt).split('/');
-//			var fullchan = chanparts[2];		// skip '/RBNB/' prefix (2 slashes)
-//			for(var j=3; j<chanparts.length; j++) fullchan = fullchan + '/' + chanparts[j];
 			channels.push(fullchan);			// for plot selects
 		}
 	}
@@ -1341,11 +1236,8 @@ function durationSelect(cb) {
 	var secondsPerPlot = parseFloat(cb.options[cb.selectedIndex].value);
 	for(var i=0; i<plots.length; i++) plots[i].setDuration(secondsPerPlot);
 
-//	if(top.rtflag==PAUSE && oldestTime > 0) {
-//	console.log('durationSelect, oldestTime: '+oldestTime);
 	if(top.rtflag==PAUSE && !isImage && oldestTime>0) {
 		rePlay();
-//		refreshCollection(true,getTime(),getDuration(),"absolute");	// auto-refill plots to full duration??
 	}
 	
 	top.plotDuration = secondsPerPlot;		// global for eavesdroppers
@@ -1538,8 +1430,6 @@ function setSingleStep() {
 	
 	if(ratio < 0.001) singleStep = true;		// e.g. 1sec updates at 10 min => ratio 0.0016
 	if(duration <= 0.1) singleStep = true;
-	
-//	if(duration < 1) singleStep = true;			// try
 }
 
 //----------------------------------------------------------------------------------------	
@@ -1613,7 +1503,6 @@ function resetParams() {
 		var update = document.getElementById("myUpdate");		// msec
 		tDelay = parseFloat(update.options[update.selectedIndex].value);
 	}
-//	runstopUpdate();
 }
 
 //----------------------------------------------------------------------------------------
@@ -1656,7 +1545,6 @@ function rebuildPage() {
 
 function rebuildPage2(maxWait) {
 	if((inProgress || refreshInProgress) && maxWait>0) { 						// wait til prior update done
-//		console.debug('inProgress: '+inProgress+', refreshInProgress: '+refreshInProgress);
 		setTimeout(function(){rebuildPage2(--maxWait);}, 100); 
 		return; 
 	}
@@ -1679,10 +1567,6 @@ function setTimeNoSlider(time) {
 	month[6] = "Jul";	month[7] = "Aug";	month[8] = "Sep";	month[9] = "Oct";	month[10] = "Nov";	month[11] = "Dec";
 	
 	d = new Date(time);		// msec
-//	var dstring = d.toUTCString();
-//	dstring = dstring.split(", ")[1];		// string leading "Day, "
-
-//	var dstring = ("0"+(d.getDate()+1)).slice(-2) + " " + month[d.getMonth()] + " " + 
 	var dstring = ("0"+d.getDate()).slice(-2) + " " + month[d.getMonth()] + " " + 
     d.getFullYear() + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + ":" + ("0" + d.getSeconds()).slice(-2);
 	
@@ -1702,7 +1586,6 @@ function setTimeParam(time, param) {
 function setTime(time) {
 	if(debug) {
 		console.debug("setTime: "+time);
-//		console.trace();
 	}
 		
 	if(time == 0 || isNaN(time)) return;		// uninitialized
@@ -1730,7 +1613,6 @@ function setTimeSlider(time) {
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
 	if(debug) {
 		console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
-//		console.trace();
 	}
 	el.value = percent;
 }
@@ -1762,12 +1644,6 @@ function updateTimeLimits(time) {
 
 var resetMode=false;
 function resetLimits(pplot) {
-//	resetMode=true;
-//	goBOF();
-//	goEOF();
-//	oldestTime = new Date().getTime();  newestTime=0;		// force reset
-//	fetchData(plots[pplot].params[0], pplot, 0., 0., "newest");	
-//	fetchData(plots[pplot].params[0], pplot, 0., 0., "oldest");	
 	for(var i=0; i<plots[pplot].params.length; i++) {
 		AjaxGetParamTimeNewest(plots[pplot].params[i]);
 		AjaxGetParamTimeOldest(plots[pplot].params[i]);
@@ -1780,27 +1656,19 @@ function resetLimits(pplot) {
 // should have a time-only fetch version (f=t)
 function getLimits(forceFlagOld, forceFlagNew) {
 	if(nplot<=0 || !plots[0] || !plots[0].params || plots[0].params.length<=0) return;		// notta
-//	var otime = getTime();
 	
 	var iplot=0;		// find first plot with channel
 	for(iplot=0; iplot<nplot; iplot++) if(plots[iplot] && plots[iplot].params.length > 0) break;
 	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]+", forceOld: "+forceFlagOld+', forceNew+', forceFlagNew);
 
 	if(newestTime == 0 || newestTime < oldestTime || forceFlagNew) {
-//		fetchData(plots[iplot].params[0], 0, 0, 0, "newest");
 		updateNewest();
 	}
 	
 //	var status = getLimits2(plots[iplot].params[0], forceFlagNew);
 	if(oldestTime == 0 || oldestTime > newestTime || forceFlagOld) {
-//		fetchData(plots[iplot].params[0], 0, 0, 0, "oldest");
 		updateOldest();
 	}
-
-	
-//	if(debug) 
-//		console.debug("getLimits out, oldestTime: "+oldestTime+", newestTime: "+newestTime);
-//	if(!forceFlagOld && !forceFlagNew) setTime(otime);
 	
 	return(status);
 }
@@ -1846,12 +1714,10 @@ function AjaxGetParamTimeNewest(param) {
 					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]+", newestTime: "+newestTime);
 			}
 			else {  				
-//	    		newTime[param] = 0;		// out of action
 				console.log('AjaxGetParamTime Error: '+url);
 			}
 		}
 	};
-//	console.debug("AjaxGetParamTime: "+url);
 	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
@@ -1868,19 +1734,16 @@ function AjaxGetParamTimeOldest(param) {
 
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
-//				paramTime[param] = ptime;
 				if(ptime < oldestTime) {
 					oldestTime = ptime;
 				}
 				if(debug) console.debug("AjaxGetParamTimeOldest, param: "+param+", ptime: "+ptime+', oldestTime: '+oldestTime);
 			}
 			else {  				
-//	    		paramTime[param] = 0;		// out of action
 				console.log('AjaxGetParamTime Error: '+url);
 			}
 		}
 	};
-//	console.debug("AjaxGetParamTime: "+url);
 	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
@@ -1907,7 +1770,6 @@ function getLimits3() {
 		setTimeout(function(){getLimits3();}, 100); 
 		return; 
 	}
-//	if(debug) console.debug('getLimits3 got oldestTime: '+oldestTime);
 	return true;
 }
 
@@ -1918,11 +1780,9 @@ function getLimits3() {
 function buildCharts() {
 	refreshInProgress = true;
 	if(debug) console.log('buildCharts: '+plots.length);
-//	newestTime = oldestTime = 0;	// force time limit reset
 	newTime = [];					// reset newTime array
 
 	var emsg = 'Your browser does not support HTML5 canvas';
-//	var graphDiv = document.getElementById('graphs');
 
 	// clean up
 	var graphs=document.getElementById("graphs");
@@ -1932,7 +1792,6 @@ function buildCharts() {
 
 	// create each plot
 	var nparam = 0;		// count active params
-//	var ncol = 2;		// number of columns (need from UI)
 	var ncol = numCol;
 	if(ncol == 0) {	 // auto
 		if(window.innerWidth > window.innerHeight) {		// wider than tall
@@ -1959,10 +1818,6 @@ function buildCharts() {
 		var row  = graphs.insertRow(-1);		// add rows as needed
 
 		for(var icol=0; icol<ncol && iplot<plots.length; icol++,iplot++) {
-//			console.log('iplot: '+iplot+', irow: '+irow+', icol: '+icol);
-
-//			for(var i=0; i<plots.length; i++) {	
-//			var row  = graphs.insertRow(i);		// was -1 // foo
 			var cell1=row.insertCell(-1);		// was 0
 
 			// plotDiv child of graphDiv	
@@ -2012,14 +1867,10 @@ function buildCharts() {
 			prow = plotTable.insertRow(1);
 			var pcell1 = prow.insertCell(0); 
 			pcell1.style.position="relative";	// position parent of canvas so canvas-absolute is relative to this... ??
-//			var pdiv1 = document.createElement('div');
-//			pcell1.appendChild(pdiv1);					// ??
 			
 			var canvas = new Array();			// MJM 10/12/16
-//			maxLayer = 1;		// foo debug
 			for(i=0; i<maxLayer; i++) {
 				canvas.push(document.createElement('canvas'));
-//				var canvas = document.createElement('canvas');
 				canvas[i].innerHTML = emsg; 
 				canvas[i].id = 'plot'+iplot; 
 				canvas[i].setAttribute("class", "canvas");
@@ -2035,18 +1886,13 @@ function buildCharts() {
 					canvas[i].style.top=0; 		// was pdiv.height (undefined)
 					canvas[i].style.left=0;
 				}
-//				if(i==(maxLayer-1)) addListeners(canvas[i]);		// add mouse click event listeners
 				canvas[i].style.zIndex = -1;				// no mouse click on layers
 				canvas[i].style.zIndex = maxLayer - i;		// order alpha on top
-				
-//				pdiv1.appendChild(canvas[i]);
 				pcell1.appendChild(canvas[i]);
 			}
 			addListeners(pcell1);							// add listener to cell (vs canvas layer)
 			// associate smoothie chart with canvas
 			plots[iplot].addCanvas(canvas);
-
-//			vidscan(canvas, 'NASATV/image.jpg');		// foo debug
 		}
 	}
 
@@ -2082,22 +1928,10 @@ var moveEvent = isTouchSupported ?  (isPointerEnabled ? (window.PointerEvent ? '
 var endEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerup'   : 'MSPointerUp')   : 'touchend')   : 'mouseup';
 var outEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerdown' : 'MSPointerOut')  : 'touchcancel'): 'mouseout';
 
-//var clickEvent = isTouchSupported ? 'click touchend touchcancel mouseup' : 'click';		// ?
-
 function addListeners(c) {
-//	console.debug('isTouchSupported: '+isTouchSupported+", isPointerEnabled: "+isPointerEnabled+", PointerEvent: "+window.PointerEvent+", MSPointer: "+window.MSPointerEvent);
-
 	c.addEventListener(startEvent,mouseDown, false); 	
 	c.addEventListener(endEvent,  mouseUp,   false);	
 	c.addEventListener(outEvent,  mouseOut,   false);	 
-//	c.addEventListener(moveEvent, mouseMove, false);	
-//	c.addEventListener(clickEvent, mouseClick, false);			// ?
-//	c.addEventListener('dblclick', mouseDblClick, false);
-
-//	if(isTouchSupported) {
-//		c.addEventListener('gesturestart', pinchStart);
-//		c.addEventListener('gestureend',   pinchEnd);
-//	}
 	c.addEventListener("mousewheel", mouseWheel, false);
 }
 
@@ -2179,7 +2013,6 @@ function mouseOut(e) {
 //	console.log('mouseOut');
 //	e.preventDefault();		// for IE
 
-//	clearTimeout();
 	if(thiswin) {
 		thiswin.removeEventListener(moveEvent, mouseMove);
 		thiswin=0;		// avoid thrash
@@ -2191,8 +2024,6 @@ function mouseOut(e) {
 function mouseUp(e) {
 //	console.log('mouseUp');
 //	e.preventDefault();		// for IE
-
-//	clearTimeout();
 	if(mouseIsStep && getTime() == startMoveTime) {
 		if(mouseClickX >= 0.5) 	stepCollection(thisplot,startMoveTime,"next");
 		else					stepCollection(thisplot,startMoveTime,"prev");
@@ -2238,9 +2069,7 @@ function mouseMove(e) {
 		
 		stepDir= 0;		// no side effects
 		var mDur = getDuration();		// duration msec
-		var inc = relstep * mDur;			// msec
-//		if(debug) console.log('rect1x: '+rect1x+', eclientX: '+eclientX+', relstep: '+relstep+', inc: '+inc);
-		
+		var inc = relstep * mDur;			// msec		
 //		if(Math.abs(relstep) < 0.01) return;				// too small to bother
 		if(e.touches && e.touches.length == 2) 	pinchScale(e);
 		else									mouseScale(e);
@@ -2325,7 +2154,6 @@ function buildChanLists() {
 			var elo = document.createElement("option");
 			var src = channels[i].split('/');
 			var chan = src.pop();
-//			src = src.pop()+'/';				// source limited to one level up
 			src = src.join('/')+'/';
 			if(src != mysrc) {		// new source group
 				elo.value = '';
@@ -2576,7 +2404,6 @@ function goTime(percentTime) {
 	else {
 		getLimits(0,0);				// make sure limits are known...
 		++maxwaitTime;
-//		if(debug) console.debug("goTime newestTime: "+newestTime);
 		if(newestTime==0 && maxwaitTime<50) {		// hopefully doesn't happen, obscure problems if lumber on
 //		if(newestTime==0) {		// hopefully doesn't happen, obscure problems if lumber on
 
@@ -2602,8 +2429,6 @@ function goTime2(percentTime) {
 	if(mDur > (newestTime - oldestTime)) mDur = newestTime - oldestTime;
 	
 	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		
-//	if(gotime < oldestTime) goTime = oldestTime;
-//	if(gotime > (newestTime - mDur)) gotime = newestTime - mDur;
 	
 // try again, MJM 8/17/16, gotime is right-edge plot
 	if(gotime < (oldestTime+mDur)) goTime = oldestTime + mDur;
@@ -2611,7 +2436,6 @@ function goTime2(percentTime) {
 	
 	if(debug) console.debug("goTime: "+gotime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
 	refreshCollection(true,gotime,getDuration(),"absolute");	// go to derived absolute time
-//	setTime(gotime+mDur);
 	if(percentTime==0 || percentTime==100) 	setTime(gotime);
 	else									setTimeNoSlider(gotime);		// no tug of war
 }
@@ -2681,9 +2505,6 @@ function plot() {
 
 	this.chart.options.scaleSmoothing = 0.25;		// default 0.125
 	this.chart.stop();		// ?? init
-// now handled by refreshCollection RBNB data fetch
-//	this.chart.options['maxDataSetLength'] = this.maxChartPts;		// trial
-//	this.chart.resetBounds = false;
 	
 	//----------------------------------------------------
 	// set short range value with letter suffix
@@ -2711,12 +2532,6 @@ function plot() {
 	// Sample timestamp formatting function
 	function myTimeFormatter(date) {
 		function pad2(n) { return (n < 10 ? '0' : '') + n; }
-//		var y= pad2(date.getUTCFullYear() - 2000);
-//		var M= pad2(date.getUTCMonth()+1);
-//		var d= pad2(date.getUTCDate());
-//		var h= pad2(date.getUTCHours());
-//		var m= pad2(date.getUTCMinutes());
-//		var s= pad2(date.getUTCSeconds());
 		var y= pad2(date.getFullYear() - 2000);
 		var M= pad2(date.getMonth()+1);
 		var d= pad2(date.getDate());
@@ -2724,14 +2539,11 @@ function plot() {
 		var m= pad2(date.getMinutes());
 		var s= pad2(date.getSeconds());
 		var ms= pad2(date.getMilliseconds());
-//		console.debug('duration: '+duration);
 		var now = new Date().getTime();		// msec since 1970
 		var then = date.getTime();
 		var longAgo = (now - then) > 86400000;	// 1 day (msec)
 		if(longAgo && duration > 864000)	return M+'/'+d+'/'+y;		// 10 days (duration=sec)
-//		else if(longAgo && duration >= 600) 	return M+'/'+d+'/'+y+' '+h+':'+m;
 		else if(longAgo && duration >= 86400) 	return M+'/'+d+' '+h+':'+m;
-//		else if(longAgo)			return M+'/'+d+'/'+y+' '+h+':'+m+':'+s;
 		else if(duration >= 600)		return h+':'+m;		// trust sec==00 if min>=10
 		else if(duration >= 10)			return h+':'+m+':'+s;
 		else if(duration >= 1) {
@@ -2836,10 +2648,8 @@ function plot() {
 		if(typeof this.canvas == 'undefined') return;		// notta to do
 		this.chart.stop();									// no scrolling if render!?
 		var chartnow = (etime>0)?etime:this.chart.now;
-//		console.debug('cnow: '+this.chart.now+', etime: '+etime);
 		this.chart.options.scaleSmoothing = 1.0;	// one-step jump to new scale
 		for(var key in this.lines) {
-//			console.debug("RESET BOUNDS, key: "+key+", linelen: "+this.lines[key].data.length)
 			if(this.lines[key].data.length > 0) this.lines[key].resetBounds();		// only scale active lines
 		}
 		this.chart.render(this.canvas, chartnow);
@@ -2864,7 +2674,6 @@ function plot() {
 	this.nuke = function() {			// nuke charts and lines?
 		this.clear();
 		for(var i=0; i<this.lines.length; i++) delete this.lines[i];
-//		delete this.lines;
 		delete this.chart;
 	};
 	
@@ -2873,7 +2682,6 @@ function plot() {
 		duration = secondsPerPlot;
 		var millisPerPixel = 1000 * secondsPerPlot / this.width;
 		var millisPerLine = millisPerPixel * this.width / this.horizGrids;
-//		console.debug('millisPerPixel: '+millisPerPixel);
 		this.chart.options['millisPerPixel'] = millisPerPixel;
 		this.chart.options.grid['millisPerLine'] = millisPerLine;
 	};
@@ -2906,7 +2714,6 @@ function plot() {
 		}
 		if(yoffset != null) this.yoffset += yoffset * this.yrange;
 		if(yrange != null)  this.yrange   = yrange  * this.yrange;
-//		console.debug('setCale, yoffset: '+yoffset+', this.yoffset: '+this.yoffset+', yrange: '+yrange+', this.yrange: '+this.yrange);
 	}
 	
 	// myYRangeFunction:  custom y-range function
@@ -2947,7 +2754,6 @@ function plot() {
 					var stdDev = getStandardDeviation(timeSeries.data);
 					var wpmax = mean + wildPointReject * stdDev;
 					var wpmin = mean - wildPointReject * stdDev;
-//					console.debug("series: "+d+", mean: "+mean+", stdDev: "+stdDev+", oldMin: "+range.min+", oldMax: "+range.max);
 					
 					if (timeSeries.data.length) {
 						// Walk through all data points, finding the min/max value
@@ -2983,13 +2789,6 @@ function plot() {
 			var vmax = roundHumane(range.max,1);
 			if((vmin*vmax>0) && (vmin/vmax <= 0.25)) vmin = 0.;
 			if(isNaN(vmin) || isNaN(vmax)) return({min: range.min, max: range.max});		// watch for bad nums
-				
-			// adjust by any manual tweeks:
-//			var vrange = this.yrange * (vmax - vmin);						// scaled range
-//			var voffset = (vmax+vmin)/2. + this.yoffset *(vmax-vmin);		// new midpoint
-//			vmax = voffset + vrange / 2;
-//			vmin = voffset - vrange / 2;
-//			console.debug('myYRange, ymin: '+vmin+', ymax: '+vmax+', this.yrange: '+this.yrange);
 
 			if((scalingMode == "Auto") && (reScale==false)) {	// Auto scaling
 				if(vmax > this.ymax) this.ymax = vmax;			// increasing only
@@ -3083,15 +2882,7 @@ function plotbox() {
 				this.display.addLine(param);
 				break;
 			case 'video':
-//				if(this.display == null) this.display = new vidscan(param);	
-//				if(paramtype == 'video') this.params.length=0;			// only one vid per plot?
 				this.display = new vidscan(param);	
-				/*
-				else if(paramtype == 'video') {		// presume a stripchart added to video is audio
-					alert("only one video per plot");	
-					return;
-				}
-				*/
 				break;	
 			case 'audio':		
 				if(this.display == null) this.display = new audioscan();	// was audioscan(param)
@@ -3177,7 +2968,6 @@ function plotbox() {
 	this.addCanvas = function(element) {
 		this.canvas = element;
 		if(this.display != null) {
-//			console.log('plotbox addCanvas: '+element.id);
 			this.display.addCanvas(element);
 		}
 	}
@@ -3230,8 +3020,6 @@ function audioscan() {
 //	this.rate = 8000;			// need to derive rate...
 	
 	if(audioContext == null) {
-//		var contextClass = (window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext);
-//		if (contextClass) audioContext = new contextClass();
 		audioContext = new (window.AudioContext || window.webkitAudioContext)();
 	}	
 	if(audioContext == null) {
@@ -3278,21 +3066,12 @@ function audioscan() {
     }
     
 	this.playAudio = function(audio) {		
-//		audio = bytesToAudio(audio);
 		if(audio.length == 0) return;		// notta
 		var audio=new Float32Array(data);
 		var audioBuffer = audioContext.createBuffer(1, audio.length , this.rate);
 		audioBuffer.getChannelData(0).set(audio);
-//		var audioBuffer = audioContext.createBuffer(1, audio.length , this.rate);
-//		audioBuffer.getChannelData(0).set(audio);
 		audioSource.buffer = audioBuffer;
 		audioSource.start(0);
-/*		
-		audioContext.decodeAudioData(audio,function(buffer){
-			audioSource.buffer = buffer;
-			audioSource.start(0);
-		},alert('decodeAudio Error'));
-*/
 	}
 	
 	// https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
@@ -3395,8 +3174,6 @@ function vidscan(param) {
 
     this.addCanvas = function(element) {
     	this.canvas = element;		// element here is array of canvas (layers)
-//    	canvas = element;		// foo
-//    	console.log('vidscan addCanvas: '+this.canvas.id);
     }
 
 //  ----------------------------------------------------------------------------------------    
@@ -3417,14 +3194,13 @@ function vidscan(param) {
     	
     	if(debug) console.log("vidscan setImage, inprogress: "+this.videoInProgress+', imgurl: '+imgurl+', ilayer: '+ilayer);
 		var now = new Date().getTime();
-//   	if((imgurl.indexOf("newest") != -1) || (imgurl.indexOf("oldest") != -1)) { // no wait check on limits requests
-//   	}
+
 		if((now-lastload)>10000) {		// checks to avoid deadlock
 			if(debug) console.debug('reset video_inprogress');
     		this.videoInProgress = 0;
     	}
 		// if return on videoInProgress>0, lose ability to alpha-stack images...
-		else if(this.videoInProgress>2 /* && imgurl.indexOf("oldest")!=-1 && imgurl.indexOf("newest")!=-1 */) {		// don't overwhelm (was >2)
+		else if(this.videoInProgress>2) {		// don't overwhelm (was >2)
     		if(debug) console.warn('video busy, skipping: '+imgurl+", videoInProgress: "+this.videoInProgress);
 //    		this.videoInProgress = 0;		// single wait?
     		return;						
@@ -3438,8 +3214,6 @@ function vidscan(param) {
     	img.canvas = this.canvas[ilayer];
     	if(ilayer == 0) img.alpha = 1;
     	else			img.alpha = 0.5;
-//    	if(img.canvas == null) console.debug("OOPS, setImage without canvas!!!");
-//    	this.img.onload = imgload.bind(this);
 
     	img.onload = function() {		// draw on image load (new function with new image)
 //    		if(debug) console.warn("imgload: complete: "+this.complete+", inprogress: "+this.videoInProgress+", this.width: "+this.width);
