@@ -180,6 +180,7 @@
 
     if (i === -1) {
       // This new item is the oldest data
+//        this.clear();		// MJM clear so that following appends push vs splice
       this.data.splice(0, 0, [timestamp, value]);
     } else if (this.data.length > 0 && this.data[i][0] === timestamp) {
       // Update existing values in the array

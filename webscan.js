@@ -483,7 +483,13 @@ function endsWith(str, suffix) {
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function setAudio(url, param, plotidx, duration, time, refTime) {
-	if(debug) console.log("setAudio: "+url+", refTime: "+refTime);
+//	if(inProgress>1) {
+//		console.debug("inProgress: "+inProgress+", skipping audio fetch!!");
+//		inProgress--;
+//		return;
+//	}
+	if(debug) 
+		console.log("setAudio: "+url+", refTime: "+refTime);
 
 	var audioRequest = new XMLHttpRequest();
 	audioRequest.open('GET', url, true); 				//	open the request...
@@ -507,8 +513,20 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					else				estRate = 8000;
 					
 					var floats = new Array();
-//					if((top.rtflag==PAUSE) && ((nval / estRate) > 0.2)) nval = 0.2 * estRate;		// limit audio snips to 0.2sec if manually scrolling
-					for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
+					// cluge for Safari, it won't play audio < 22050Hz, so upsample...
+					var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
+					if(isSafari && estRate < 22050) {
+						floats.length = 3*nval;		// initialize len (faster)
+						for(var i=0, j=waveHdrLen, k=0; i<nval; i++,j++,k+=3) {
+							floats[k] = floats[k+1] = floats[k+2] = buffer[j] / 32768.;
+						}
+						estRate = 3*estRate;		// 24000
+					}
+					else {
+						floats.length = nval;
+						for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
+					}
+					
 					// pull info out of header if available
 					var htime = audioRequest.getResponseHeader("time");		
 					if(htime != null) 	htime = 1000 * Number(htime);			// sec -> msec
@@ -538,7 +556,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					newTime[param] = ntime;
 					if(ntime > newestTime) newestTime = ntime;
 						
-					if(debug) console.log("--gotAudio, len: "+floats.length+", duration: "+duration+", estRate: "+estRate+", headerTime: "+htime+", header duration: "+hdur);
+					if(debug) 
+						console.log("--gotAudio, len: "+floats.length+", duration: "+duration+", estRate: "+estRate+", headerTime: "+htime+", header duration: "+hdur);
 					
 					if(duration == 0) {		// no display on limit checks
 						if(debug) console.debug("duration0, tstamp: "+htime+", oldestTime: "+oldestTime+", newestTime: "+newestTime);
@@ -557,8 +576,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 						nval = 0.2 * estRate;		// limit audio snips to 0.2sec if manually scrolling
 						if(debug) console.log("+++++got: "+buffer.length+", trimmed: "+nval+", nval/estRate: "+(nval/estRate));
 						floats = floats.slice(0,nval);
-					}
-
+					}	
+					
 					if(stepDir != -2) new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
 					if(debug) console.debug("time: "+time+", htime: "+htime+", lastreqTime: "+lastreqTime);
 				}
@@ -793,6 +812,9 @@ function rtCollection(time) {
 
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
+//		console.debug('overflow? inProgress: '+inProgress);
+//		if(inProgress>2) return;		// don't overwhelm!?
+		
 		var anyplots=false;
 
 		updatePauseDisplay(top.rtflag);
@@ -864,6 +886,8 @@ function rtCollection(time) {
 	if(dt <= 100) dt = 100; 
 	intervalID2 = 1;					// so intervalID doesn't pause video before can check		
 
+	for(var j=0; j<plots.length; j++) plots[j].dropdata();		// init?
+	
 	doRT(dt);		// startup faster without delay
 	intervalID = setInterval(function() {doRT(dt);}, dt);
 	
@@ -1049,7 +1073,7 @@ function refreshCollection(onestep, time, fetchdur, reftime) {
 
 function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 	refreshInProgress=true;
-	if(inProgress) { 		// wait til paused
+	if(inProgress>0) { 		// wait til paused
 		setTimeout(function(){refreshCollection2(--maxwait, onestep, time, fetchdur, reftime);}, 100); 
 		return; 
 	}	
@@ -1090,7 +1114,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 }
 
 function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
-	if(inProgress) { 	// wait til done
+	if(inProgress>0) { 	// wait til done
 		setTimeout(function(){refreshCollection3(--maxwait, onestep, time, fetchdur, reftime);}, 100); 
 		return; 
 	}	
@@ -1523,7 +1547,7 @@ function fetchActive(status) {
 //rebuildPage:  reconstruct and restart data collection 
 
 function rebuildPageWait(maxWait) {
-	if((inProgress || refreshInProgress) && maxWait>0) { 						// wait til prior update done
+	if((inProgress>0 || refreshInProgress) && maxWait>0) { 						// wait til prior update done
 //		console.debug('inProgress: '+inProgress+', refreshInProgress: '+refreshInProgress);
 		setTimeout(function(){rebuildPageWait(--maxWait);}, 100); 
 		return; 
@@ -1544,7 +1568,7 @@ function rebuildPage() {
 }
 
 function rebuildPage2(maxWait) {
-	if((inProgress || refreshInProgress) && maxWait>0) { 						// wait til prior update done
+	if((inProgress>0 || refreshInProgress) && maxWait>0) { 						// wait til prior update done
 		setTimeout(function(){rebuildPage2(--maxWait);}, 100); 
 		return; 
 	}
@@ -1625,7 +1649,7 @@ function getTime() {
 var lastSet=0;
 function timeSelect(el) {
 //	console.debug("timeSelect, inProgress: "+inProgress);
-	if(inProgress) return;
+	if(inProgress>0) return;
 	var now = new Date().getTime();
 	if((now - lastSet) < 100) return;			// ease up if busy
 	lastSet = now;
@@ -3035,17 +3059,16 @@ function audioscan() {
 	audioSource.connect(audioContext.destination);
 	
 	this.playPcmChunk = function(audio, srate) {
-//		var audio=new Float32Array(data);
 		if(srate <= 0) srate = this.rate;
 
-//		TO DO:  use audio in audio.wav (vs pcm) format, then skip the createBuffer() call which is not implemented on IOS
+//		TO DO:  use audio in audio.wav (vs pcm) format, then skip the createBuffer() call?
 		if(audio.length <= 0) {
 			if(debug) console.warn("playPcmChunk zero length audio!");
-			inProgress=0;
+//			inProgress=0;
 			return;
 		}
-	
-		// Warning:  Safari doesn't work with srate<22050
+		
+		var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
         try {
             var audioBuffer = audioContext.createBuffer(1, audio.length, srate);
             audioBuffer.getChannelData(0).set(audio);
@@ -3054,6 +3077,7 @@ function audioscan() {
         } catch(err) { 
             console.warn("Cannot play audio!");          
         }
+        
 	}
     
     this.playMp3Chunk = function(data) {
