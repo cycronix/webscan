@@ -511,22 +511,11 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					var estRate = (buffer.length - waveHdrLen) / (duration/1000.);
 					if(estRate > 10000) estRate = 22050;		// simple guess one of two rates
 					else				estRate = 8000;
-					
+
 					var floats = new Array();
-					// cluge for Safari, it won't play audio < 22050Hz, so upsample...
-					var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
-					if(isSafari && estRate < 22050) {
-						floats.length = 3*nval;		// initialize len (faster)
-						for(var i=0, j=waveHdrLen, k=0; i<nval; i++,j++,k+=3) {
-							floats[k] = floats[k+1] = floats[k+2] = buffer[j] / 32768.;
-						}
-						estRate = 3*estRate;		// 24000
-					}
-					else {
-						floats.length = nval;
-						for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
-					}
-					
+					floats.length = nval;						// init to length (faster)
+					for(i=0, j=waveHdrLen; i<nval; i++,j++) floats[i] = buffer[j] / 32768.;
+
 					// pull info out of header if available
 					var htime = audioRequest.getResponseHeader("time");		
 					if(htime != null) 	htime = 1000 * Number(htime);			// sec -> msec
@@ -578,7 +567,21 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 						floats = floats.slice(0,nval);
 					}	
 					
-					if(stepDir != -2) new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
+					if(stepDir != -2) {
+						// cluge for Safari, it won't play audio < 22050Hz, so upsample...
+						var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
+						if(isSafari && estRate < 22050) {
+							var floats3 = new Array();
+							floats3.length = 3*floats.length;		// initialize len (faster)
+							for(j=0, k=0; j<nval; j++,k+=3) {
+								floats3[k] = floats3[k+1] = floats3[k+2] = floats[j];
+							}
+							new audioscan().playPcmChunk(floats3, 3*estRate);		// no reverse-play audio
+						}
+						else {
+							new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
+						}
+					}
 					if(debug) console.debug("time: "+time+", htime: "+htime+", lastreqTime: "+lastreqTime);
 				}
 //				else console.debug('invalid pcm audio response buffer');
