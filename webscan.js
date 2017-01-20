@@ -541,6 +541,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
 					}
+					else AjaxGetParamTimeNewest(param);		// not in header, fetch as separate call?
+
 					var ntime = htime + hdur;		// update refs (in case audio played but not strip-plotted)
 					newTime[param] = ntime;
 					if(ntime > newestTime) newestTime = ntime;
@@ -796,6 +798,7 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 
 var playDelay=0;
 var playStart=0;
+var gotNewTime=0;		// for async playDelay update...
 function rtCollection(time) {
 	stopRT();
 	inProgress = 0;		// reset
@@ -863,11 +866,14 @@ function rtCollection(time) {
 				
 				if(top.rtflag==RT) {
 					if(tright > newestTime) {
-						AjaxGetParamTimeNewest(param);
-						playDelay = new Date().getTime() - newestTime;			// increase playDelay if getting ahead
-						if(debug) console.debug('New PLAYDELAY: '+playDelay);
+						var tplayDelay = new Date().getTime() - newestTime;	
+						if(tplayDelay > playDelay) playDelay = tplayDelay;		// increase playDelay if getting ahead
+//						playDelay = new Date().getTime() - newestTime;			
+						if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
+//						AjaxGetParamTimeNewest(param);		// this results in async update to gotNewTime
 					}
 				} 
+
 				if(dfetch > 0) fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 			}
 		}
@@ -900,10 +906,10 @@ function rtCollection(time) {
 	lastmediaTime = 0;			// reset
 	var slowdownCount = 0;
 	var fastDelay=tDelay/10;
-	if(top.rtflag==RT) {
-		playDelay = 0;
-		newTime = [];		// reset
-	}
+//	if(top.rtflag==RT) {
+//		playDelay = 0;
+//		newTime = [];		// reset
+//	}
 	
 //	playDelay = 0;
 	function doRTfast() {
@@ -928,12 +934,14 @@ function rtCollection(time) {
 				if(debug) console.debug("video fetch ptime: "+ptime+", playDelay: "+playDelay);
 //				if(top.rtflag==RT && (ptime > newestTime) && newTime[param]) {	// try newest request if get ahead of newest
 				if(top.rtflag==RT && (ptime > newestTime)) {	// try newest request if get ahead of newest
-					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
+//					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
 
 					// increase playDelay if getting ahead
 					var tplayDelay = new Date().getTime() - newestTime;	
-					if(tplayDelay > playDelay) playDelay = tplayDelay;
-					
+					if(tplayDelay > playDelay) {
+						playDelay = tplayDelay;
+					}
+
 					if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
 				} else {
 					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
@@ -955,7 +963,9 @@ function rtCollection(time) {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastmediaTime > prevmediaTime) {
 //				prevmediaTime = lastmediaTime;
-				if(top.rtflag==RT && slowdownCount > 10) playDelay = new Date().getTime() - newestTime;	// reset?
+				if(top.rtflag==RT && slowdownCount > 10) {
+					playDelay = new Date().getTime() - newestTime;	// reset?
+				}
 				slowdownCount=0;
 				intervalID2 = setTimeout(doRTfast,fastDelay);
 			} else {
@@ -1181,6 +1191,8 @@ function AjaxGet(myfunc, url, args) {
 						if(Tnew > newestTime) newestTime = Tnew;
 //						newTime[param] = newestTime;		// for oldest-of-newest RT check
 					}
+					else AjaxGetParamTimeNewest(param);		// not in header, fetch as separate call?
+					
 //					if(newTime[param]==null) newTime[param]= time+duration;
 
 					var htime = 1000 * Number(xmlhttp.getResponseHeader("time"));
@@ -1735,8 +1747,10 @@ function AjaxGetParamTimeNewest(param) {
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
 				newTime[param] = ptime;
-				if(ptime > newestTime) 
+				if(ptime > newestTime) {
 					newestTime = ptime;
+					gotNewTime = newestTime;
+				}
 				if(debug) 
 					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]+", newestTime: "+newestTime);
 			}
@@ -3418,6 +3432,7 @@ function vidscan(param) {
     					if(Tnew > newestTime) newestTime = Tnew;
 //						newTime[param] = newestTime;
     				}
+					else AjaxGetParamTimeNewest(param);		// not in header, fetch as separate call?
 
     		    	if(debug) console.debug('AjaxGetImage, tstamp: '+tstamp+", holdest: "+holdest+", hnewest: "+hnewest);
     			
