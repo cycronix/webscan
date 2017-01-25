@@ -2623,6 +2623,7 @@ function plot() {
 			var line = this.lines[param];
 //			console.debug('addValue, param: '+param+', line.length: '+line.data.length);
 			var nosort=false;	// nosort causes smoothie plot glitches!
+			if(line.data.length > 10000) nosort = true;		// large plots can't afford sorting (exponential work!)
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
 				line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
