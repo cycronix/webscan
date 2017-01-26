@@ -870,7 +870,7 @@ function rtCollection(time) {
 						if(tplayDelay > playDelay) playDelay = tplayDelay;		// increase playDelay if getting ahead
 //						playDelay = new Date().getTime() - newestTime;			
 						if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
-//						AjaxGetParamTimeNewest(param);		// this results in async update to gotNewTime
+						AjaxGetParamTimeNewest(param);		// this results in async update to gotNewTime
 					}
 				} 
 
@@ -934,7 +934,7 @@ function rtCollection(time) {
 				if(debug) console.debug("video fetch ptime: "+ptime+", playDelay: "+playDelay);
 //				if(top.rtflag==RT && (ptime > newestTime) && newTime[param]) {	// try newest request if get ahead of newest
 				if(top.rtflag==RT && (ptime > newestTime)) {	// try newest request if get ahead of newest
-//					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
+					AjaxGetParamTimeNewest(param);			// just get newest time without displaying data
 
 					// increase playDelay if getting ahead
 					var tplayDelay = new Date().getTime() - newestTime;	
@@ -963,7 +963,7 @@ function rtCollection(time) {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastmediaTime > prevmediaTime) {
 //				prevmediaTime = lastmediaTime;
-				if(top.rtflag==RT && slowdownCount > 10) {
+				if(top.rtflag==RT && slowdownCount > 1000) {
 					playDelay = new Date().getTime() - newestTime;	// reset?
 				}
 				slowdownCount=0;
