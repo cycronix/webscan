@@ -507,7 +507,11 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 
 					var buffer = new Int16Array(audioRequest.response);
 					var nval = buffer.length - waveHdrLen;
-
+					if(nval <= 0) {		// fire wall
+						console.warn("Warning: zero length audio!");
+						return;
+					}
+					
 					var estRate = (buffer.length - waveHdrLen) / (duration/1000.);
 					if(estRate > 10000) estRate = 22050;		// simple guess one of two rates
 					else				estRate = 8000;
@@ -799,6 +803,8 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 var playDelay=0;
 var playStart=0;
 var gotNewTime=0;		// for async playDelay update...
+var skootch = 0;		// this hides right-side stripchart data gaps (was 1.5)
+
 function rtCollection(time) {
 	stopRT();
 	inProgress = 0;		// reset
@@ -814,8 +820,10 @@ function rtCollection(time) {
 		
 	// stripchart fetch data on interval
 	var prevnewestTime = newestTime;
-	newTime = [];		// reset
-
+	newTime = [];			// reset
+	skootch = 2*tDelay;		// init
+	var tfetch = 0;
+	
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
 //		console.debug('overflow? inProgress: '+inProgress);
@@ -825,12 +833,12 @@ function rtCollection(time) {
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
-		var skootch = 1.5*dt;			// this hides right-side stripchart data gaps
+//		var skootch = 2*dt;			// this hides right-side stripchart data gaps (was 1.5)
 		
 		var tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
 		
 		// global timing logic:
-		var tleft = tright - pDur;						// left-edge time
+		var tleft = tright - pDur;							// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
@@ -856,6 +864,11 @@ function rtCollection(time) {
 		}
 		
 		for(var j=0; j<plots.length; j++) {
+			var tskootch = tright - newTime[plots[j].params[0]] + dt;		// skootch to first param each plot
+			if(!(tskootch > 0)) tskootch = 0;
+			if(Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;
+			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch);
+			
 			plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
 			
 			for(var i=0; i<plots[j].params.length; i++) {
@@ -915,7 +928,8 @@ function rtCollection(time) {
 	function doRTfast() {
 		if(intervalID2==0) return;		// fail-safe
 		
-		var ptime = playTime();		
+		var ptime = playTime();	
+		if(intervalID != 0 && tfetch != 0) ptime = tfetch;				// match stripchart delay?
 //		if(intervalID != 0) ptime = ptime + getDuration()/2;	// video at mid-duration of plot (better audio sync)
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
@@ -2433,6 +2447,7 @@ function goRT2() {
 
 var maxwaitTime=0;
 function goTime(percentTime) {
+	goPause();		// make sure stopped
 	stepDir=0;		// turn off playRvs
 	if(percentTime==0) {
 //		getLimits(1,0);		// force new limits
@@ -2621,9 +2636,10 @@ function plot() {
 	this.addValue = function(param, time, value) {
 		if((value!=undefined) && !isNaN(value)) { 	// possible with slow initial fetch
 			var line = this.lines[param];
-//			console.debug('addValue, param: '+param+', line.length: '+line.data.length);
 			var nosort=false;	// nosort causes smoothie plot glitches!
-			if(line.data.length > 10000) nosort = true;		// large plots can't afford sorting (exponential work!)
+			if(line.data.length > 20000) nosort = true;		// large plots can't afford sorting (exponential work!)
+//			console.debug('addValue, param: '+param+', line.length: '+line.data.length+', nosort: '+nosort);
+
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
 				line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
@@ -3086,7 +3102,7 @@ function audioscan() {
 			return;
 		}
 		
-		var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
+//		var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
         try {
             var audioBuffer = audioContext.createBuffer(1, audio.length, srate);
             audioBuffer.getChannelData(0).set(audio);
