@@ -93,6 +93,7 @@ var numCol=0;						// numcols per plot row (0=auto)
 var reScale=true;					// one shot rescale flag
 var rtmode=1;						// real-time mode flag (rtmode==1 for latest play-RT MJM 8/24/16)
 var playStr="&gt;";					// ">" play mode
+var maxParam=10;					// max param per plot
 
 top.rtflag=0;						// RT state (for eavesdroppers)
 top.plotTime=0;						// sec
@@ -212,17 +213,18 @@ function myURL() {
 //setURLParam:  update or add query string parameter to URL
 
 function setURLParam(uri, key, value) {
-	if(!value || value=="") return uri;		// no-op
+	if(value == "") value = null;
+//	if(!value || value=="") return uri;		// need for clearing param! e.g. p00
 	var evalue = escape(''+value);
 	if(uri==null) uri="";
 	var newuri = uri;
 	var re = new RegExp("([?|&])" + key + "=.*?(&|$)", "i");
 	separator = uri.indexOf('?') !== -1 ? "&" : "?";
 	if (uri.match(re)) 	{
-		if(value == null)		newuri = uri.replace(re,'');
+		if(value == null)		newuri = uri.replace(re,separator);		// was ''
 		else					newuri = uri.replace(re, '$1' + key + "=" + evalue + '$2');
 	} else if(value != null)	newuri = uri + separator + key + "=" + evalue;
-//	window.location.href = newuri;
+//	console.log('setURLParam, uri: '+uri+', newuri: '+newuri+', key: '+key+', value: '+value);
 	return newuri;
 }
 
@@ -268,8 +270,8 @@ function getCookie(c_name)
 //setConfig:  update configuration with key=value.  store in cookie.
 
 function setConfig(key,value) {
-	setCookie(myName, setURLParam(getCookie(myName),key,value));
 //	console.log('setConfig, key: '+key+', value: '+value+', cookie: '+getCookie(myName));
+	setCookie(myName, setURLParam(getCookie(myName),key,value));
 }
 
 function getConfig(param) {
@@ -304,9 +306,10 @@ function configParams(src) {
 //	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
 	
 	for(var i=0; i<nplot; i++) {
-		for(var j=0; j<10; j++) {
+		for(var j=0; j<maxParam; j++) {
 			var chan = getURLParam(src,'p'+i+''+j);		
 			setConfig('p'+i+''+j,chan);
+//			console.debug('setconfig chan: '+chan);
 			if(chan != null) plots[i].addParam(chan);
 		}
 	}
@@ -351,7 +354,7 @@ function setPlots(nplot) {
 	} else {
 		for(var i=nplot; i<plots.length; i++) {
 			if(plots[i]) plots[i].clear();		// clear charts (if defined, not on IE?)
-			for(var j=0;j<10;j++) setConfig('p'+i+''+j,null);		// remove from config
+			for(var j=0;j<maxParam;j++) setConfig('p'+i+''+j,null);		// remove from config
 		}
 		plots.splice(nplot,plots.length-nplot);					// rebuild list
 	}
@@ -509,7 +512,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					var nval = buffer.length - waveHdrLen;
 					if(nval <= 0) {		// fire wall
 						console.warn("Warning: zero length audio!");
-						return;
+						nval = 0;
+//						return;
 					}
 					
 					var estRate = (buffer.length - waveHdrLen) / (duration/1000.);
@@ -823,6 +827,7 @@ function rtCollection(time) {
 	newTime = [];			// reset
 	skootch = 2*tDelay;		// init
 	var tfetch = 0;
+	var tright = 0;
 	
 	function doRT(dt) {
 		if(debug) console.debug("doRT!");
@@ -835,7 +840,7 @@ function rtCollection(time) {
 		var pDur = getDuration();		// msec
 //		var skootch = 2*dt;			// this hides right-side stripchart data gaps (was 1.5)
 		
-		var tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
+		tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
 		
 		// global timing logic:
 		var tleft = tright - pDur;							// left-edge time
@@ -929,7 +934,10 @@ function rtCollection(time) {
 		if(intervalID2==0) return;		// fail-safe
 		
 		var ptime = playTime();	
-		if(intervalID != 0 && tfetch != 0) ptime = tfetch;				// match stripchart delay?
+		if(intervalID != 0 && tfetch != 0) {
+//			console.debug('adjust ptime: '+(tright-tfetch+dt)+', ptime: '+ptime+', tfetch: '+tfetch+', ptime-tfetch: '+(tright-tfetch));
+			ptime = ptime - (tright - tfetch + dt);				// match stripchart delay?
+		}
 //		if(intervalID != 0) ptime = ptime + getDuration()/2;	// video at mid-duration of plot (better audio sync)
 		anyvideo = false;
 		for(var j=0; j<plots.length; j++) {
@@ -1912,7 +1920,7 @@ function buildCharts() {
 				cdiv.appendChild(node);	
 				setConfig('p'+iplot+''+j,plots[iplot].params[j]);
 			}
-
+			
 			// x clearPlot button
 			if(plots[iplot].params.length > 0) {		// only if any curves to clear
 				addClearBox('clear'+iplot, clearPlotSelect, 'x', pdiv);
@@ -2318,7 +2326,10 @@ function totalLines() {
 function clearPlotSelect(cb) {
 	var pplot = parseInt(this.id.replace('clear',''));
 	plots[pplot].clear();													// clear timeseries from plot
-	for(var j=0;j<10;j++) setConfig('p'+pplot+''+j,null);					// remove from config
+	for(var j=0;j<maxParam;j++) {
+//		console.debug('clearplot: '+j);
+		setConfig('p'+pplot+''+j,null);					// remove from config
+	}
 	plots.splice(pplot,1,new plotbox({doFill:doFill,doSmooth:doSmooth}));	// empty new plot
 
 	noRebuild = false;
