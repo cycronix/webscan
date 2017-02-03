@@ -836,10 +836,9 @@ function rtCollection(time) {
 	var numPlotted = 0;		// keep track of number in-flight
 	
 	function doRT(dt) {
-//		if(debug) 
-			console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlotted);
+		if(debug) console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlotted);
 		if(numPlotted>0 && inProgress>numPlotted) {	
-			console.warn("Not keeping up, skipping data request!");
+			console.warn("Not keeping up, skipping data request! inProgress: "+inProgress);
 			return;		// don't overwhelm!?
 		}
 		
@@ -972,8 +971,7 @@ function rtCollection(time) {
 						playDelay = tplayDelay;
 					}
 
-					if(debug) 
-						console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
+					if(debug) console.debug('New PLAYDELAY: '+playDelay);
 				} else {
 					if(debug) 
 						console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
@@ -994,10 +992,18 @@ function rtCollection(time) {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
 			if(lastmediaTime > prevmediaTime) {
 //				prevmediaTime = lastmediaTime;
-				if(top.rtflag==RT && slowdownCount > 1000) {
-					playDelay = new Date().getTime() - newestTime;	// reset?
+				var tplayDelay = new Date().getTime() - newestTime;	// reset?
+				if(top.rtflag==RT && slowdownCount > 1000) {				// was 1000 
+					if(debug) console.debug('reset PlayDelay from : '+playDelay+', to: '+tplayDelay);
+					playDelay = tplayDelay;
 				}
 				slowdownCount=0;
+				
+				//  gently creep back to RT
+				playDelay -= 10;			// creep back up to RT?
+				if(playDelay < tplayDelay) playDelay = tplayDelay;
+//				if(debug) console.debug('creep playDelay: '+playDelay);
+				
 				intervalID2 = setTimeout(doRTfast,fastDelay);
 			} else {
 				slowdownCount++;				// ease up if not getting data
@@ -1107,9 +1113,8 @@ function stepCollection(iplot, time, refdir) {
 function refreshCollection(onestep, time, fetchdur, reftime) {
 //	onestep=false for refilling plot and continuing with RT data 
 	refreshInProgress=true;
-	if(debug) {
+	if(debug) 
 		console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep);
-	}
 
 	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
@@ -1182,6 +1187,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 	
 	// force timeslider to show EOF:
 	if(reftime=="newest") setTime(newestTime);
+//	if(reftime=="oldest") setTime(oldestTime);		// ??
 }
 
 //----------------------------------------------------------------------------------------
@@ -1619,6 +1625,8 @@ function rebuildPage2(maxWait) {
 		return; 
 	}
 	
+	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
+	if(getTime()>newestTime) setTime(oldestTime);
 	refreshCollection(true,getTime(),getDuration(),"absolute");					// auto-refill plots to full duration
 	if(!isPause()) 	goRT();
 
@@ -1646,7 +1654,8 @@ function setTimeNoSlider(time) {
 	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')';
 	top.plotTime = time / 1000.;		// global, units=sec
 	
-//	if(debug) console.debug('setTimeNoSlider: '+time);
+	if(debug) console.debug('setTimeNoSlider: '+time);
+//	console.trace();
 }
 
 function setTimeParam(time, param) {
@@ -2350,9 +2359,6 @@ function goBOF() {
 	if(debug) console.log("goBOF");
 //	goTime(0);		// more robust limit checks?
 	refreshCollection(true,getDuration(),getDuration(),"oldest");	// time is right-edge!
-
-//	setTimeout(function(){ setTime(oldestTime); }, 200);
-//	console.log("goBOF, oldestTime: "+oldestTime);
 }
 
 function playRvs() {
@@ -3420,16 +3426,13 @@ function vidscan(param) {
 		
     	if(debug) console.log('AjaxGetImage, url: '+url);
 		
-//    	if(this.nreq > 2) return;		// drop frames if getting behind...
     	var instance = this;			// for reference inside onreadystatechange function
     	var xmlhttp=new XMLHttpRequest();
     	
     	xmlhttp.onreadystatechange=function() {
         	fetchActive(false);
 
-    		if (xmlhttp.readyState==4) {
-//    			console.log("Ajax readstatechange: "+xmlhttp.readyState);
-    			
+    		if (xmlhttp.readyState==4) {    			
 				if(debug) console.log("AjaxGetImage, got: "+url+", inprogress: "+instance.videoInProgress+", status: "+xmlhttp.status);
 				instance.videoInProgress--;			// decremented in imgload()
 				if(instance.videoInProgress < 0) instance.videoInProgress = 0;
@@ -3442,11 +3445,10 @@ function vidscan(param) {
     				var wurl = window.URL || window.webkitURL;
     				var tstamp = this.getResponseHeader("time");								// float sec (with millisecond resolution)
     				var tstamp2 = this.getResponseHeader("Last-Modified");
-//    				if(!tstamp) tstamp = Date.parse(tstamp2)/1000;								// full-sec
     				if(debug) console.log('image header tstamp: '+tstamp+", Last-Modified: "+tstamp2);
     				
     		    	img.src = wurl.createObjectURL(new Blob([this.response], {type: "image/jpeg"}));
-    				if(debug) console.debug("img.src = new blob!  url: "+url+", length: "+xmlhttp.response.size);
+    				if(debug) console.warn("img.src = new blob!  url: "+url+", length: "+xmlhttp.response.size);
 
     				var holdest = xmlhttp.getResponseHeader("oldest");		
     				if(holdest != null) {
@@ -3486,6 +3488,7 @@ function vidscan(param) {
     		    		}
     		    		
         		    	Tlast = T;
+//        		    	console.debug('oldestTime: '+oldestTime+', newestTime: '+newestTime);
 //        		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);		// jitters?
         		    	lastmediaTime = T;
 //        	    		if(hnewest == null || top.rtflag!=RT) 
@@ -3501,9 +3504,6 @@ function vidscan(param) {
     				if(debug && xmlhttp.status == 304) console.debug('got dupe for: '+url);
     				if(debug) console.log('Warning, xmlhttp.status: '+xmlhttp.status);
     				if(xmlhttp.status != 304) {			// skip over dupes
-//    					if	   (url.indexOf("r=next") != -1) newTime[param] = 99999999999999;
-//    					else if(url.indexOf("r=prev") != -1) newTime[param] = 0; 
-//    					else 
     					if((getTime() >= newestTime && top.rtflag!=RT) || (xmlhttp.status != 410 && xmlhttp.status != 404)) {	// keep going (over gaps)
     						if(debug) console.log('stopping on xmlhttp.status: '+xmlhttp.status+", time: "+getTime()+", newestTime: "+newestTime);
     						goPause();
@@ -3522,7 +3522,6 @@ function vidscan(param) {
     	
     	fetchActive(true);
     	xmlhttp.send();
-//    	nreq++;
     }
 }
 
