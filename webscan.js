@@ -560,13 +560,18 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					
 					if(duration == 0) {		// no display on limit checks
 						if(debug) console.debug("duration0, tstamp: "+htime+", oldestTime: "+oldestTime+", newestTime: "+newestTime);
-						if(refTime=="oldest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=0; 	  if(htime!=0 && htime<oldestTime) oldestTime=htime; }	
-						if(refTime=="newest" && htime!=0) { setTime(htime);	document.getElementById('TimeSelect').value=100;  if(htime>newestTime) newestTime=htime; }	
+						if(refTime=="oldest" && htime!=0) { 
+							setTime(htime);	document.getElementById('TimeSelect').value=0; 	  
+							if(htime!=0 && htime<oldestTime) oldestTime=htime; 
+						}	
+						if(refTime=="newest" && htime!=0) { 
+							setTime(htime);	document.getElementById('TimeSelect').value=100;  
+							if(htime>newestTime) newestTime=htime; 
+						}	
 					}
 					else {
 						setParamBinary(floats, url, param, plotidx, hdur, htime, refTime);	
 						// setTime on request only
-//						if(htime && htime>0) setTimeParam(htime+duration,param);		// set time if first plot/param
 						if(top.rtflag==RT || refTime=="oldest" || refTime=="newest") setTime(htime+duration);
 					}
 					
@@ -828,11 +833,15 @@ function rtCollection(time) {
 	skootch = 2*tDelay;		// init
 	var tfetch = 0;
 	var tright = 0;
+	var numPlotted = 0;		// keep track of number in-flight
 	
 	function doRT(dt) {
-		if(debug) console.debug("doRT!");
-//		console.debug('overflow? inProgress: '+inProgress);
-//		if(inProgress>2) return;		// don't overwhelm!?
+//		if(debug) 
+			console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlotted);
+		if(numPlotted>0 && inProgress>numPlotted) {	
+			console.warn("Not keeping up, skipping data request!");
+			return;		// don't overwhelm!?
+		}
 		
 		var anyplots=false;
 
@@ -848,7 +857,7 @@ function rtCollection(time) {
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
 //		var dfetch = 1.5*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
-		var dfetch = 0.1*dt + tright - tfetch;			// very little extra (avoid audio overlap)
+		var dfetch = 0.05*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
 		
 		if(debug) 
 			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
@@ -868,6 +877,7 @@ function rtCollection(time) {
 			return;
 		}
 		
+		numPlotted = 0;			// recalc
 		for(var j=0; j<plots.length; j++) {
 			var tskootch = tright - newTime[plots[j].params[0]] + dt;		// skootch to first param each plot
 			if(!(tskootch > 0)) tskootch = 0;
@@ -892,7 +902,10 @@ function rtCollection(time) {
 					}
 				} 
 
-				if(dfetch > 0) fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
+				if(dfetch > 0) {
+					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
+					numPlotted++;
+				}
 			}
 		}
 		
@@ -936,7 +949,7 @@ function rtCollection(time) {
 		var ptime = playTime();	
 		if(intervalID != 0 && tfetch != 0) {
 //			console.debug('adjust ptime: '+(tright-tfetch+dt)+', ptime: '+ptime+', tfetch: '+tfetch+', ptime-tfetch: '+(tright-tfetch));
-			ptime = ptime - (tright - tfetch + dt);				// match stripchart delay?
+			ptime = ptime - (tright - tfetch);				// match stripchart delay?
 		}
 //		if(intervalID != 0) ptime = ptime + getDuration()/2;	// video at mid-duration of plot (better audio sync)
 		anyvideo = false;
@@ -946,11 +959,6 @@ function rtCollection(time) {
 				if(!param) continue;
 //				if(plots[j].type == 'stripchart') continue;		// stripcharts go 1/10 nominal rate
 				if(!endsWith(param,".jpg") && !endsWith(param,".txt")) continue;	// can have mixed .jpg & .wav params!
-
-				if(top.rtflag==RT) {
-//					AjaxGetParamTimeNewest(param);			// get newest every loop????
-					if(debug) console.debug('RT fetch newest, slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime+', playDelay: '+playDelay);
-				}
 
 				anyvideo = true;
 				if(debug) console.debug("video fetch ptime: "+ptime+", playDelay: "+playDelay);
@@ -964,10 +972,11 @@ function rtCollection(time) {
 						playDelay = tplayDelay;
 					}
 
-					if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
+					if(debug) 
+						console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
 				} else {
-					if(debug) console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
-//					if(endsWith(param,'.txt') && top.rtflag==RT || !newTime[param])	
+					if(debug) 
+						console.debug('RT fetch absolute, param: '+param+', slowdownCount: '+slowdownCount+', ptime: '+ptime+', newestTime: '+newestTime);
 					if(endsWith(param,'.txt') && top.rtflag==RT)	
 								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
 					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
@@ -1644,11 +1653,7 @@ function setTimeParam(time, param) {
 	if(plots[0].params.length==0 || param==plots[0].params[0]) setTime(time);
 }
 
-function setTime(time) {
-	if(debug) {
-		console.debug("setTime: "+time);
-	}
-		
+function setTime(time) {	
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
 	
@@ -1657,9 +1662,7 @@ function setTime(time) {
 	setTimeSlider(time);		
 }
 
-function setTimeSlider(time) {
-	if(debug) console.debug('setTimeSlider, time: '+time+', oldest: '+oldestTime+', newest: '+newestTime);
-	
+function setTimeSlider(time) {	
 	var el = document.getElementById('TimeSelect');
 	if(newestTime == 0 || oldestTime == 0) {   			// failsafe	
 		if(debug) console.log("WARNING:  setTimeSlider without limits, newestTime: "+newestTime+", oldestTime: "+oldestTime);
@@ -1672,9 +1675,9 @@ function setTimeSlider(time) {
 		mDur = getDuration();		// duration msec	
 	if(mDur > (newestTime-oldestTime)) mDur = newestTime-oldestTime;
 	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
-	if(debug) {
-		console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
-	}
+	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
+//		console.trace();
+		
 	el.value = percent;
 }
 
@@ -3483,8 +3486,7 @@ function vidscan(param) {
     		    		}
     		    		
         		    	Tlast = T;
-        		    	if(debug) console.debug('AjaxGetImage, header Time: '+T);
-        		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);
+//        		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);		// jitters?
         		    	lastmediaTime = T;
 //        	    		if(hnewest == null || top.rtflag!=RT) 
         		    	newTime[param] = T;
