@@ -1187,7 +1187,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 	
 	// force timeslider to show EOF:
 	if(reftime=="newest") setTime(newestTime);
-//	if(reftime=="oldest") setTime(oldestTime);		// ??
+	if(reftime=="oldest") setTime(oldestTime);		// ??
 }
 
 //----------------------------------------------------------------------------------------
