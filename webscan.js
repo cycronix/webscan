@@ -837,7 +837,7 @@ function rtCollection(time) {
 	
 	function doRT(dt) {
 		if(debug) console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlotted);
-		if(numPlotted>0 && inProgress>numPlotted) {	
+		if(numPlotted>0 && inProgress>=numPlotted) {	
 			console.warn("Not keeping up, skipping data request! inProgress: "+inProgress);
 			return;		// don't overwhelm!?
 		}
@@ -1463,7 +1463,7 @@ function rePlay() {
 	else if(document.getElementById('play').innerHTML=="||") mode = PLAY;
 
 	if(mode==PAUSE && !isImage && oldestTime > 0) {
-		refreshCollection(true,getTime(),getDuration(),"absolute");	// auto-refill plots to full duration??
+		refreshCollection(true,getTime()+getDuration(),getDuration(),"absolute");	// auto-refill plots to full duration?? (time is right-edge!)
 	}
 	else if(mode==PLAY) {
 		playFwd();
@@ -1627,7 +1627,7 @@ function rebuildPage2(maxWait) {
 	
 	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
 	if(getTime()>newestTime) setTime(oldestTime);
-	refreshCollection(true,getTime(),getDuration(),"absolute");					// auto-refill plots to full duration
+	refreshCollection(true,getTime()+getDuration(),getDuration(),"absolute");	// auto-refill plots to full duration (time is right-edge!)
 	if(!isPause()) 	goRT();
 
 
@@ -1663,6 +1663,8 @@ function setTimeParam(time, param) {
 }
 
 function setTime(time) {	
+//	console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
+//	console.trace();
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
 	
