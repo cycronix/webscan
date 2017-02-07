@@ -105,7 +105,7 @@ var PLAY=2;
 
 var scalingMode="Auto";				// scaling "Standard" (1-2-5) or "Tight" or "Auto" (Std increasing only) 
 
-var newTime = new Array();			// array of times for each parameter
+var gotTime = new Array();			// array of most recent got-times for each parameter
 
 //----------------------------------------------------------------------------------------
 //webscan:  top level main method
@@ -552,7 +552,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					else AjaxGetParamTimeNewest(param);		// not in header, fetch as separate call?
 
 					var ntime = htime + hdur;		// update refs (in case audio played but not strip-plotted)
-					newTime[param] = ntime;
+					gotTime[param] = ntime;
 //					console.debug('setAudio, newTime: '+newTime[param]);
 
 					if(ntime > newestTime) newestTime = ntime;
@@ -729,7 +729,7 @@ function setParamValue(text, url, args) {
 		}	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 
-		newTime[param] = time;
+		gotTime[param] = time;
 //		console.debug('setParamValue, newTime: '+newTime[param]);
 	}
 	
@@ -757,9 +757,9 @@ function setParamText(text, url, args, time) {
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 		updateTimeLimits(time);
-		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+newTime[param]);
+		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+gotTime[param]);
 //		if(time > newTime[param]) 
-			newTime[param] = time;
+			gotTime[param] = time;
 	}
 	
 	if(debug) console.log("setParamText NULL text, url: "+url);
@@ -799,11 +799,11 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 		var plot0=0;
 		lastgotTime = time;
 //		if(time > newTime[param]) 
-		newTime[param] = time;
+		gotTime[param] = time;
 //		console.debug('setParamBinary, newTime: '+newTime[param]);
 	}
 
-	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+newTime[param]);
+	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+gotTime[param]);
 }
 
 //----------------------------------------------------------------------------------------
@@ -832,7 +832,7 @@ function rtCollection(time) {
 		
 	// stripchart fetch data on interval
 	var prevnewestTime = newestTime;
-	newTime = [];			// reset
+	gotTime = [];			// reset
 	skootch = 2*tDelay;		// init
 	var tfetch = 0;
 	var tright = 0;
@@ -879,8 +879,8 @@ function rtCollection(time) {
 		
 		numPlotted = 0;			// recalc
 		for(var j=0; j<plots.length; j++) {
-			var tskootch = tright - newTime[plots[j].params[0]] + dt;		// skootch to first param each plot
-			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch+', dt: '+dt+', tright: '+tright+', newTime: '+newTime[plots[j].params[0]]);
+			var tskootch = tright - gotTime[plots[j].params[0]] + dt;		// skootch to first param each plot
+			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch+', dt: '+dt+', tright: '+tright+', newTime: '+gotTime[plots[j].params[0]]);
 			if(!(tskootch > 0)) tskootch = 0;
 			if(Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;	// no skootch if not much diff (otherwise jerky)?
 			
@@ -1043,7 +1043,7 @@ function oldestNewest() {
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
 			var pname = plots[j].params[i];
-			var t = newTime[pname];
+			var t = gotTime[pname];
 			if(oldnew == 0) 	oldnew = t;
 			else if(t < oldnew) oldnew = t;
 			if(debug) console.debug("plot: "+j+", pname: "+ pname+", t: "+t+", oldnew: "+oldnew);
@@ -1075,7 +1075,7 @@ function stepCollection(iplot, time, refdir) {
 		for(var j=0; j<plots.length; j++) {	
 			for(var i=0; i<plots[j].params.length; i++) {
 				var pname = plots[j].params[i];
-				var t = newTime[pname];
+				var t = gotTime[pname];
 				if(t < 0) continue;		// out of action
 				if(endsWith(pname, ".jpg") && t<otime) {
 					idx = i;
@@ -1091,7 +1091,7 @@ function stepCollection(iplot, time, refdir) {
 		for(var j=0; j<plots.length; j++) {	
 			for(var i=0; i<plots[j].params.length; i++) {
 				var pname = plots[j].params[i];
-				var t = newTime[pname];
+				var t = gotTime[pname];
 				if(t < 0) continue;		// out of action
 				if(endsWith(pname, ".jpg") && t>ntime) {
 					idx = i;
@@ -1105,7 +1105,7 @@ function stepCollection(iplot, time, refdir) {
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
 	plots[iplot].display.setImage(url,param,0);
-	setTime(newTime[param]);
+	setTime(gotTime[param]);
 }
 
 //----------------------------------------------------------------------------------------
@@ -1260,8 +1260,8 @@ function AjaxGet(myfunc, url, args) {
 	xmlhttp.open("GET",url,true);
 	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
 //	if(top.rtflag!=PAUSE && newTime[param] && duration==0.) 
-	if(newTime[param] && duration==0.) 
-		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(newTime[param]) );
+	if(gotTime[param] && duration==0.) 
+		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(gotTime[param]) );
 	
 	fetchActive(true);
 	if(pidx!=null) plots[pidx].nfetch++;
@@ -1790,7 +1790,7 @@ function AjaxGetParamTimeNewest(param) {
 					gotNewTime = newestTime;
 				}
 				if(debug) 
-					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+newTime[param]+", newestTime: "+newestTime);
+					console.debug("AjaxGetParamTimeNewest, param: "+param+", time: "+gotTime[param]+", newestTime: "+newestTime);
 			}
 			else {  				
 				console.log('AjaxGetParamTime Error: '+url);
@@ -1859,7 +1859,7 @@ function getLimits3() {
 function buildCharts() {
 	refreshInProgress = true;
 	if(debug) console.log('buildCharts: '+plots.length);
-	newTime = [];					// reset newTime array
+	gotTime = [];					// reset newTime array
 
 	var emsg = 'Your browser does not support HTML5 canvas';
 
@@ -3396,7 +3396,7 @@ function vidscan(param) {
     		}
 
 //    		if(stime > newTime[param]) 
-    			newTime[param] = stime;
+    			gotTime[param] = stime;
     		lastmediaTime = stime;
     	}
     }
@@ -3503,7 +3503,7 @@ function vidscan(param) {
 //        		    	if(top.rtflag==RT || newReq || oldReq) setTime(T);		// jitters?
         		    	lastmediaTime = T;
 //        	    		if(hnewest == null || top.rtflag!=RT) 
-        		    	newTime[param] = T;
+        		    	gotTime[param] = T;
     		    	}
     		    	else {	// update time limits if not provided in HTTP header
     		    		url = url.replace("dt=b","dt=s");
@@ -3528,8 +3528,8 @@ function vidscan(param) {
     	xmlhttp.open("GET",url,true);
     	xmlhttp.responseType = 'blob';
 //    	if(top.rtflag!=PAUSE && newTime[param]) 
-    	if(newTime[param])
-    		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(newTime[param]) );
+    	if(gotTime[param])
+    		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(gotTime[param]) );
     	
     	fetchActive(true);
     	xmlhttp.send();
