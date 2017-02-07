@@ -1105,6 +1105,7 @@ function stepCollection(iplot, time, refdir) {
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
 	plots[iplot].display.setImage(url,param,0);
+	setTime(newTime[param]);
 }
 
 //----------------------------------------------------------------------------------------
@@ -2004,7 +2005,10 @@ if(isPointerEnabled) isTouchSupported = false;				// IE10 pointer/gesture events
 var startEvent = isTouchSupported ? (isPointerEnabled ? (window.PointerEvent ? 'pointerdown' : 'MSPointerDown') : 'touchstart') : 'mousedown';
 var moveEvent = isTouchSupported ?  (isPointerEnabled ? (window.PointerEvent ? 'pointermove' : 'MSPointerMove') : 'touchmove')  : 'mousemove';
 var endEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerup'   : 'MSPointerUp')   : 'touchend')   : 'mouseup';
-var outEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerdown' : 'MSPointerOut')  : 'touchcancel'): 'mouseout';
+var outEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerout' : 'MSPointerOut')  : 'touchcancel'): 'mouseout';
+
+// try fixing these:
+/* startEvent = 'pointerdown'; moveEvent = 'pointermove'; endEvent = 'pointerup'; outEvent = 'pointerout'; */
 
 function addListeners(c) {
 	c.addEventListener(startEvent,mouseDown, false); 	
@@ -2027,6 +2031,7 @@ var mouseClickX=0;
 function mouseDown(e) {
 //	console.log('mouseDown');
     e = e || window.event;
+	e.preventDefault();		// stop scrolling
 
     // filter out right-mouse clicks
     if 		("which" in e) 	if(e.which == 3) return; 	// Gecko (Firefox), WebKit (Safari/Chrome) & Opera
@@ -2038,7 +2043,6 @@ function mouseDown(e) {
 	if(!plots[thisplot] || plots[thisplot].type == 'text') return;		// notta for text (yet)
 	
 	reScale = true;
-	e.preventDefault();		// stop scrolling
 	mouseIsMove=false;		// not yet
 //	console.log('mousedown, e: '+e.target.id);
 	setPlay(PAUSE,0);
@@ -2060,8 +2064,10 @@ function mouseDown(e) {
 	}
 
 	startMoveTime = getTime();
-	if(plots[thisplot].type == 'stripchart')
+	if(plots[thisplot].type == 'stripchart') {
 		this.addEventListener(moveEvent, mouseMove);
+		return;
+	}
 
 	// mouse-step logic:
 //	mouseIsStep = endsWith(plots[thisplot].params[0], ".jpg");
@@ -2079,8 +2085,8 @@ function mouseStep(dir) {
 	if(!mouseIsStep) return;
 	if(!refreshInProgress) {
 		var stepTime = getTime();
-		if(debug) console.debug('mouseIsStep: '+mouseIsStep+', stepTime: '+stepTime+' oldStepTime: '+oldStepTime);
 		stepCollection(thisplot,stepTime,dir);
+		if(debug) console.debug('mouseIsStep: '+mouseIsStep+', stepTime: '+stepTime+' oldStepTime: '+oldStepTime+', getTime: '+getTime());
 		oldStepTime = stepTime;
 		setTimeSlider(getTime());
 	}
@@ -2125,12 +2131,12 @@ function mouseClickPlot(e) {
 var lastMove=0;
 var mouseIsMove=false;
 function mouseMove(e) {
-//	console.log('mouseMove');
-	if(mouseIsStep) return;			// no shimmy
 	e.preventDefault();				// stop scrolling
+
+//	console.log('mouseMove, mouseIsStep: '+mouseIsStep);
+	if(mouseIsStep) return;			// no shimmy
 	var now = Date().now;
 	if((now - lastMove) < 100) return;	// limit update rate
-
 	if(!refreshInProgress && !inProgress) {
 		lastMove = now;
 		mouseIsMove=true;
@@ -2151,13 +2157,15 @@ function mouseMove(e) {
 //		if(Math.abs(relstep) < 0.01) return;				// too small to bother
 		if(e.touches && e.touches.length == 2) 	pinchScale(e);
 		else									mouseScale(e);
-
 		mouseIsStep = false;		// switch gears
 		var newT = Math.round(startMoveTime + inc);
+//		console.log('newT: '+newT+', startMoveTime: '+startMoveTime+', inc: '+inc);
+
 		if(getTime() != newT || scalingMode == "Manual") {
 			refreshCollection(true,newT,mDur,"absolute");
 			setTime(newT);			// was cmt out...
 		}
+//		this.addEventListener(moveEvent, mouseMove);		// for Android?
 	}
 }
 
