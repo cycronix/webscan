@@ -199,7 +199,7 @@ function getURLParam(uri, key) {
 			value = unescape(KeyValuePair[1]);
 		}
 	}
-//	if(value) console.log('getURLParam: '+key+' = '+value);
+//	if(value) console.log('getURLParam: key'+key+' = '+value+', uri: '+uri);
 	return value;
 }
 
@@ -213,7 +213,7 @@ function myURL() {
 //setURLParam:  update or add query string parameter to URL
 
 function setURLParam(uri, key, value) {
-	if(value == "") value = null;
+	if((typeof value === 'string') && value == "") value = null;
 //	if(!value || value=="") return uri;		// need for clearing param! e.g. p00
 	var evalue = escape(''+value);
 	if(uri==null) uri="";
@@ -271,7 +271,7 @@ function getCookie(c_name)
 
 function setConfig(key,value) {
 //	console.log('setConfig, key: '+key+', value: '+value+', cookie: '+getCookie(myName));
-	setCookie(myName, setURLParam(getCookie(myName),key,value));
+	setCookie(myName, setURLParam(getCookie(myName),key,value),999999);
 }
 
 function getConfig(param) {
@@ -282,22 +282,20 @@ function getConfig(param) {
 function reloadConfig() {
 	stopRT();			// stop RT
 	configParams(getCookie(myName));
-	
 	var url = myURL();
 	var urlhref = url.protocol + '//' + url.host + url.pathname + getCookie(myName);
-	if(debug) console.debug('reloadConfig getCookie: '+getCookie(myName)+', myName: '+myName+', href: '+urlhref);
+//	if(debug) console.debug('reloadConfig getCookie: '+getCookie(myName)+', myName: '+myName+', href: '+urlhref);
 
 	url.href = urlhref		
-//	window.location.href = location.protocol + '//' + location.host + location.pathname + getCookie(myName);
 }
 
 function configParams(src) {
 	var dt 		 = getURLParam(src,'dt');	if(dt != null) setRate(dt);						setConfig('dt',tDelay);
-	var nplot 	 = getURLParam(src,'n');  	if(nplot != null) setPlots(parseInt(nplot));	setConfig('n', nplot);
-	var uncol 	 = getURLParam(src,'c');  	if(uncol != null) setCols(parseInt(uncol));		setConfig('c', numCol);
+	var nplot 	 = getURLParam(src,'n');  	if(nplot != null) setPlots(parseInt(nplot));	else setConfig('n', nplot);
+	var numcol 	 = getURLParam(src,'c');  	if(numcol != null) setCols(parseInt(numcol)); else numcol = 0;	setConfig('c', numCol);
 	var fill 	 = getURLParam(src,'f');	setFill(fill=="true");							setConfig('f', fill=="true");
 	var smooth 	 = getURLParam(src,'sm');	setSmooth(smooth=="true");						setConfig('sm', smooth=="true");		// was 's'
-	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		setConfig('v', duration);
+	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		else setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
 
