@@ -221,7 +221,7 @@ function setURLParam(uri, key, value) {
 	var re = new RegExp("([?|&])" + key + "=.*?(&|$)", "i");
 	separator = uri.indexOf('?') !== -1 ? "&" : "?";
 	if (uri.match(re)) 	{
-		if(value == null)		newuri = uri.replace(re,separator);		// was ''
+		if(value == null)		newuri = uri.replace(re,'');		// was ,separator
 		else					newuri = uri.replace(re, '$1' + key + "=" + evalue + '$2');
 	} else if(value != null)	newuri = uri + separator + key + "=" + evalue;
 //	console.log('setURLParam, uri: '+uri+', newuri: '+newuri+', key: '+key+', value: '+value);
@@ -407,7 +407,8 @@ var refreshCount=0;
 function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec)
 	if((typeof(param) == 'undefined') || param == null) return;			// undefined
 	
-	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
+	// all setTime on display not fetch
+//	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
 	
 	if(debug) 
 		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
@@ -563,18 +564,21 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					if(duration == 0) {		// no display on limit checks
 						if(debug) console.debug("duration0, tstamp: "+htime+", oldestTime: "+oldestTime+", newestTime: "+newestTime);
 						if(refTime=="oldest" && htime!=0) { 
-							setTime(htime);	document.getElementById('TimeSelect').value=0; 	  
+//							setTime(htime);			// all setTime on display not fetch
+							document.getElementById('TimeSelect').value=0; 	  
 							if(htime!=0 && htime<oldestTime) oldestTime=htime; 
 						}	
 						if(refTime=="newest" && htime!=0) { 
-							setTime(htime);	document.getElementById('TimeSelect').value=100;  
+//							setTime(htime);		// all setTime on display not fetch
+							document.getElementById('TimeSelect').value=100;  
 							if(htime>newestTime) newestTime=htime; 
 						}	
 					}
 					else {
 						setParamBinary(floats, url, param, plotidx, hdur, htime, refTime);	
 						// setTime on request only
-						if(top.rtflag==RT || refTime=="oldest" || refTime=="newest") setTime(htime+duration);
+//						if(top.rtflag==RT || refTime=="oldest" || refTime=="newest") 
+//							setTime(htime);		// all setTime on display not fetch
 					}
 					
 					// trim audio playback if sliding thru data (after plotting all of it!)
@@ -720,14 +724,14 @@ function setParamValue(text, url, args) {
 	if(nval > 0) {
 		lastgotTime = time;
 		if(refTime=="oldest") { 
-			setTime(time);	document.getElementById('TimeSelect').value=0; 	  		
+//			setTime(time);	document.getElementById('TimeSelect').value=0; 	 	// all setTime on display not fetch 		
 			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime=oldgotTime; 
 		}	
 		else if(refTime=="newest") { 
-			setTime(time);	document.getElementById('TimeSelect').value=100;  	
+//			setTime(time);	document.getElementById('TimeSelect').value=100;  	// all setTime on display not fetch
 			if(newgotTime>newestTime) newestTime=newgotTime; 
 		}	
-		else if(refTime=="next" || refTime=="prev") setTime(time);
+//		else if(refTime=="next" || refTime=="prev") setTime(time);				// all setTime on display not fetch
 
 		gotTime[param] = time;
 //		console.debug('setParamValue, newTime: '+newTime[param]);
@@ -753,9 +757,11 @@ function setParamText(text, url, args, time) {
 	if(text.length > 0) {
 		plots[pidx].setText(text);
 		lastmediaTime = time;			// text is considered media (fastRT fetch)
-		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	 }	
-		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
-		else if(refTime=="next" || refTime=="prev") setTime(time);
+		
+//		if(refTime=="oldest") { setTime(time); document.getElementById('TimeSelect').value=0; 	 }		// all setTime on display not fetch
+//		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
+//		else if(refTime=="next" || refTime=="prev") setTime(time);
+		
 		updateTimeLimits(time);
 		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+gotTime[param]);
 //		if(time > newTime[param]) 
@@ -817,18 +823,18 @@ var playStart=0;
 var gotNewTime=0;		// for async playDelay update...
 var skootch = 0;		// this hides right-side stripchart data gaps (was 1.5)
 
-function rtCollection(time) {
+function rtCollection(time) {		// incoming time is from getTime(), = left-edge time
 	stopRT();
 	inProgress = 0;		// reset
 	lastgotTime = 0;
 	playStart = time;
 	if(time != 0 && top.rtflag != RT) 
-			playDelay = (new Date().getTime() - time);		// playback mode
+//			playDelay = (new Date().getTime() - time);		// playback mode
+			playDelay = (new Date().getTime() - time - getDuration());		// playback mode, start at left-edge time to overlap display
 //	else 	playDelay = 0.;
 	else 	playDelay = (new Date().getTime() - newestTime);
 
-	if(debug) 
-		console.debug('rtCollection, time: '+time+', playDelay: '+playDelay);
+	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay+', oldestTime: '+oldestTime+', getDuration: '+getDuration());
 		
 	// stripchart fetch data on interval
 	var prevnewestTime = newestTime;
@@ -837,6 +843,7 @@ function rtCollection(time) {
 	var tfetch = 0;
 	var tright = 0;
 	var numPlotted = 0;		// keep track of number in-flight
+	var rt_init = true;
 	
 	function doRT(dt) {
 		if(debug) console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlotted);
@@ -859,11 +866,10 @@ function rtCollection(time) {
 		
 		var dfetch = 0.05*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
 		
-		if(debug) 
-			console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
+		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 //		if(dfetch <= 0) return;		// nothing new
 		
-		if(singleStep) {										// delayed-start so as not to pre-scroll too much
+		if(!rt_init) {										// delayed-start so as not to pre-scroll too much
 			for(var j=0; j<plots.length; j++) plots[j].start();			
 			singleStep = false;
 		}
@@ -879,12 +885,19 @@ function rtCollection(time) {
 		
 		numPlotted = 0;			// recalc
 		for(var j=0; j<plots.length; j++) {
-			var tskootch = tright - gotTime[plots[j].params[0]] + dt;		// skootch to first param each plot
-			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch+', dt: '+dt+', tright: '+tright+', newTime: '+gotTime[plots[j].params[0]]);
+			var tskootch = tright - gotTime[plots[j].params[0]];		// skootch to first param each plot
+			tskootch = tskootch + 0.1 * dt;							// trade possible right-side gap for left
+
 			if(!(tskootch > 0)) tskootch = 0;
-			if(Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;	// no skootch if not much diff (otherwise jerky)?
+			if((tskootch !=0) && Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;	// no skootch if not much diff (otherwise jerky)?
 			
-			plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
+			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch+', dt: '+dt+', tright: '+tright+', newTime: '+gotTime[plots[j].params[0]]);
+			var now = new Date().getTime();
+			var plotTime = now - (playDelay+skootch);
+//			console.debug('set plot re-time: '+ plotTime +', tright: '+tright+', getTime: '+getTime());
+			plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (measured to right-edge of plot)
+//			setTime(now-playDelay-skootch-pDur);			// all setTime on display not fetch (setTime to left-edge)
+			setTime(tleft);						// global time set to left-edge of stripchart
 			
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
@@ -902,6 +915,7 @@ function rtCollection(time) {
 				} 
 
 				if(dfetch > 0) {
+//					console.debug('fetchData tfetch: '+tfetch+', dfetch: '+dfetch+', singleStep: '+singleStep);
 					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 					numPlotted++;
 				}
@@ -916,10 +930,12 @@ function rtCollection(time) {
 			if(intervalID2==0) goPause();
 			return;
 		}	
+		
+		rt_init = false;			// post - init
 	}
 	
 	mDur = getDuration();
-	singleStep = true;									// initiate scrolling mode
+	singleStep = false;									// initiate scrolling mode
 	var dt = tDelay;
 	if(dt > mDur) dt = mDur;			// refresh at least once per screen
 	if(dt <= 100) dt = 100; 
@@ -978,6 +994,7 @@ function rtCollection(time) {
 					if(endsWith(param,'.txt') && top.rtflag==RT)	
 								fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT
 					else		fetchData(param, j, 0, ptime, "absolute");		// RT->playback 
+					if(intervalID == 0) setTime(ptime);				// all setTime on display not fetch
 				}
 			}
 		}
@@ -1105,7 +1122,7 @@ function stepCollection(iplot, time, refdir) {
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
 	plots[iplot].display.setImage(url,param,0);
-	setTime(gotTime[param]);
+	setTime(gotTime[param]);		// all setTime on display not fetch
 }
 
 //----------------------------------------------------------------------------------------
@@ -1176,6 +1193,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 				if(debug) console.debug('refresh render: '+lastreqTime);
 				plots[j].render(lastreqTime);	// see the data?
 			}
+			if(lastreqTime) setTime(lastreqTime - getDuration());		// all setTime on display not fetch
 			if(reftime != "newest") updatePauseDisplay(PAUSE);
 		}
 		else {
@@ -1187,8 +1205,8 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 	resetMode=false;
 	
 	// force timeslider to show EOF:
-	if(reftime=="newest") setTime(newestTime);
-	if(reftime=="oldest") setTime(oldestTime);		// ??
+	if(reftime=="newest") setTime(newestTime-getDuration());		// setTime is left-edge time
+	if(reftime=="oldest") setTime(oldestTime);						// ??
 }
 
 //----------------------------------------------------------------------------------------
@@ -1423,8 +1441,8 @@ function setPlay(mode, time) {
 	}
 	else {
 		if(debug) console.debug('starting plots, singlestep: '+singleStep);
-		if(!singleStep)	// no restart animation if singlestep mode
-			for(var i=0; i<plots.length; i++) plots[i].start();
+//		if(!singleStep)	// no restart animation if singlestep mode
+//			for(var i=0; i<plots.length; i++) plots[i].start();
 		rtCollection(time);
 		document.getElementById('play').innerHTML = '||';
 	}
@@ -1661,11 +1679,13 @@ function setTimeNoSlider(time) {
 }
 
 function setTimeParam(time, param) {
-	if(plots[0].params.length==0 || param==plots[0].params[0]) setTime(time);
+	// all setTime on display not fetch
+//	if(plots[0].params.length==0 || param==plots[0].params[0]) setTime(time);
 }
 
+// sets "current" time, left-edge time on stripcharts
 function setTime(time) {	
-//	console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
+	if(debug) console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
 //	console.trace();
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
@@ -2111,7 +2131,7 @@ function mouseUp(e) {
 	if(mouseIsStep && getTime() == startMoveTime) {
 		if(mouseClickX >= 0.5) 	stepCollection(thisplot,startMoveTime,"next");
 		else					stepCollection(thisplot,startMoveTime,"prev");
-		setTime(getTime());
+//		setTime(getTime());	// all setTime on display not fetch
 	}
 	if(thiswin) {
 		thiswin.removeEventListener(moveEvent, mouseMove);
@@ -2162,8 +2182,8 @@ function mouseMove(e) {
 //		console.log('newT: '+newT+', startMoveTime: '+startMoveTime+', inc: '+inc);
 
 		if(getTime() != newT || scalingMode == "Manual") {
-			refreshCollection(true,newT,mDur,"absolute");
-			setTime(newT);			// was cmt out...
+			refreshCollection(true,newT+mDur,mDur,"absolute");		// (time is right-edge!)
+//			setTime(newT);			// all setTime on display not fetch
 		}
 //		this.addEventListener(moveEvent, mouseMove);		// for Android?
 	}
@@ -2215,7 +2235,7 @@ function mouseWheel(e) {
 	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
 //	console.debug('mouseWheel delta: '+delta);
 	plots[mouseClickPlot(e)].display.setScale(null, 1.-(delta/4.));
-	refreshCollection(true,getTime(),getDuration(),"absolute");
+	refreshCollection(true,getTime()+getDuration(),getDuration(),"absolute");
 }
 
 //----------------------------------------------------------------------------------------
@@ -2502,7 +2522,7 @@ function goTime(percentTime) {
 	}
 }
 
-// go to percentTime, where time is right-edge (newest) of duration time interval
+// go to percentTime, where time is left-edge (oldest) of duration time interval
 function goTime2(percentTime) {
 	maxwaitTime=0;
 	if(newestTime == 0) {		// hopefully doesn't happen, obscure problems if lumber on
@@ -2515,16 +2535,20 @@ function goTime2(percentTime) {
 		mDur = getDuration();		// duration msec
 	if(mDur > (newestTime - oldestTime)) mDur = newestTime - oldestTime;
 	
-	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		
+//	var gotime = oldestTime + mDur + percentTime * (newestTime - oldestTime - mDur) / 100.;		
+	// MJM 2/8/17:  gotime left-edge plot for consistency with setTime:
+	var gtime = oldestTime + percentTime * (newestTime-mDur - oldestTime) / 100.;
 	
-// try again, MJM 8/17/16, gotime is right-edge plot
-	if(gotime < (oldestTime+mDur)) goTime = oldestTime + mDur;
-	if(gotime > newestTime) gotime = newestTime;
+// gotime is left-edge plot
+	if(gtime < oldestTime) gtime = oldestTime;
+	if(gtime > newestTime-mDur) gtime = newestTime-mDur;
 	
-	if(debug) console.debug("goTime: "+gotime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
-	refreshCollection(true,gotime,getDuration(),"absolute");	// go to derived absolute time
-	if(percentTime==0 || percentTime==100) 	setTime(gotime);
-	else									setTimeNoSlider(gotime);		// no tug of war
+	if(debug) console.debug("goTime: "+gtime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
+	refreshCollection(true,gtime+mDur,mDur,"absolute");	// go to derived absolute time
+	
+	// all setTime on display not fetch
+//	if(percentTime==0 || percentTime==100) 	setTime(gtime);	
+//	else									setTimeNoSlider(gtime);		// no tug of war
 }
 
 //----------------------------------------------------------------------------------------	
