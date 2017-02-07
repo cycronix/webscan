@@ -553,6 +553,8 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 
 					var ntime = htime + hdur;		// update refs (in case audio played but not strip-plotted)
 					newTime[param] = ntime;
+//					console.debug('setAudio, newTime: '+newTime[param]);
+
 					if(ntime > newestTime) newestTime = ntime;
 						
 					if(debug) 
@@ -728,6 +730,7 @@ function setParamValue(text, url, args) {
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 
 		newTime[param] = time;
+//		console.debug('setParamValue, newTime: '+newTime[param]);
 	}
 	
 	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
@@ -754,8 +757,7 @@ function setParamText(text, url, args, time) {
 		else if(refTime=="newest") { setTime(time); document.getElementById('TimeSelect').value=100;  }	
 		else if(refTime=="next" || refTime=="prev") setTime(time);
 		updateTimeLimits(time);
-		if(debug) 
-			console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+newTime[param]);
+		if(debug) console.debug('setParamText, url: '+url+', time: '+time+', newTime: '+newTime[param]);
 //		if(time > newTime[param]) 
 			newTime[param] = time;
 	}
@@ -797,7 +799,8 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 		var plot0=0;
 		lastgotTime = time;
 //		if(time > newTime[param]) 
-			newTime[param] = time;
+		newTime[param] = time;
+//		console.debug('setParamBinary, newTime: '+newTime[param]);
 	}
 
 	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+newTime[param]);
@@ -846,7 +849,6 @@ function rtCollection(time) {
 
 		updatePauseDisplay(top.rtflag);
 		var pDur = getDuration();		// msec
-//		var skootch = 2*dt;			// this hides right-side stripchart data gaps (was 1.5)
 		
 		tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
 		
@@ -855,7 +857,6 @@ function rtCollection(time) {
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
-//		var dfetch = 1.5*dt + (tright - tfetch);		// fetch enough to go past tright (was 1.1)
 		var dfetch = 0.05*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
 		
 		if(debug) 
@@ -879,9 +880,9 @@ function rtCollection(time) {
 		numPlotted = 0;			// recalc
 		for(var j=0; j<plots.length; j++) {
 			var tskootch = tright - newTime[plots[j].params[0]] + dt;		// skootch to first param each plot
+			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch+', dt: '+dt+', tright: '+tright+', newTime: '+newTime[plots[j].params[0]]);
 			if(!(tskootch > 0)) tskootch = 0;
-			if(Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;
-			if(debug) console.debug('skootch: '+skootch+', tskootch: '+tskootch);
+			if(Math.abs(tskootch-skootch)/pDur > 0.1) skootch = tskootch;	// no skootch if not much diff (otherwise jerky)?
 			
 			plots[j].setDelay(playDelay+skootch);			// set smoothie plot delay
 			
@@ -895,7 +896,6 @@ function rtCollection(time) {
 					if(tright > newestTime) {
 						var tplayDelay = new Date().getTime() - newestTime;	
 						if(tplayDelay > playDelay) playDelay = tplayDelay;		// increase playDelay if getting ahead
-//						playDelay = new Date().getTime() - newestTime;			
 						if(debug) console.debug('New PLAYDELAY: '+playDelay+', tplayDelay: '+tplayDelay);
 						AjaxGetParamTimeNewest(param);		// this results in async update to gotNewTime
 					}
@@ -1222,7 +1222,8 @@ function AjaxGet(myfunc, url, args) {
 					}
 //					if(holdest != null) oldestTime = 1000 * Number(holdest);	
 
-					var hnewest = xmlhttp.getResponseHeader("newest");		
+					var hnewest = xmlhttp.getResponseHeader("newest");	
+//					console.debug('AjaxGet, hnewest: '+hnewest);
 					if(hnewest != null) {
 						var Tnew = 1000 * Number(hnewest);
 						if(Tnew > newestTime) newestTime = Tnew;
@@ -1775,14 +1776,14 @@ function AjaxGetParamTimeNewest(param) {
 	var xmlhttp=new XMLHttpRequest();
 	var munge = "?dt=s&f=t&r=newest&d=0&refresh="+(new Date().getTime());		// no cache
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
-	
+
 	xmlhttp.onreadystatechange=function() {
 		if (xmlhttp.readyState==4) {
 	    	fetchActive(false);
 
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
-				newTime[param] = ptime;
+//				newTime[param] = ptime;
 				if(ptime > newestTime) {
 					newestTime = ptime;
 					gotNewTime = newestTime;
