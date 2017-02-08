@@ -1704,8 +1704,15 @@ function setTimeSlider(time) {
 	var mDur = 0.;
 //	if(!isImage) 					// isImage unreliable global, async.  try always adjust
 		mDur = getDuration();		// duration msec	
-	if(mDur > (newestTime-oldestTime)) mDur = newestTime-oldestTime;
-	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
+		
+	var percent=0;
+	if(mDur > (newestTime-oldestTime)) {
+		percent = 100.;
+	} else {
+//	var percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
+		percent = 100. * (time - oldestTime) / (newestTime - oldestTime - mDur);
+	}
+	
 	if(debug) console.debug('setTimeSlider, time: '+time+", percent: "+percent+', oldestTime: '+oldestTime+', newestTime: '+newestTime+', mDur: '+mDur);
 //		console.trace();
 		
