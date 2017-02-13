@@ -1135,8 +1135,8 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //	if(reftime=="newest") setTime(newestTime-getDuration());		// setTime is left-edge time
 //	if(reftime=="oldest") setTime(oldestTime);						// ??
 	
-	if(reftime=="newest") setTime(newestTime);						// setTime is right-edge time
-	if(reftime=="oldest") setTime(oldestTime+getDuration());		
+	if(reftime=="newest" && newestTime!=0) setTime(newestTime);						// setTime is right-edge time
+	if(reftime=="oldest" && oldestTime!=0) setTime(oldestTime+getDuration());		
 }
 
 //----------------------------------------------------------------------------------------
@@ -1553,8 +1553,10 @@ function rebuildPage2(maxWait) {
 		return; 
 	}
 	
-	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
-	if(getTime()>newestTime) setTime(oldestTime);
+//	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
+//	if(getTime()>newestTime) setTime(oldestTime);
+	
+	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) setTime(oldestTime);
 	refreshCollection(true,getTime(),getDuration(),"absolute");	// auto-refill plots to full duration (time is right-edge!)
 	if(!isPause()) 	goRT();
 }
@@ -1577,7 +1579,7 @@ function setTimeNoSlider(time) {
 	var durString = cb.options[cb.selectedIndex].text;
 
 	var rtString = "";
-	if(top.rtflag==RT) rtString = "  [RT Delay: " + (playDelay/1000).toFixed(1)+"s]";
+	if(top.rtflag==RT) rtString = "   [RT-" + (playDelay/1000).toFixed(1)+"s]";
 	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')' + rtString;
 	top.plotTime = time / 1000.;		// global, units=sec
 	
