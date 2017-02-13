@@ -802,7 +802,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				if(i==0) {		// adjust on first plot param
 					var tskootch = tright - gotTime[plots[j].params[0]];		// skootch to first param each plot
 					if(tskootch != null && tskootch != 0 && tskootch < mDur) {
-						tskootch = tskootch + 0.2 * dt;							// trade possible right-side gap for left
+						tskootch = tskootch + 0.4 * dt;							// trade possible right-side gap for left (was 0.2)
 						if(Math.abs(tskootch-skootch) > pDur/10) {				// no jerking around
 							if(debug) console.debug('new skootch, from: '+skootch+', to: '+tskootch);
 							skootch = tskootch;	
@@ -810,7 +810,6 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 					}
 					
 					plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (measured to right-edge of plot)
-		
 				}
 				
 				if(top.rtflag==RT) tright = adjustPlayDelay(tright, lagTime[param], dt);		// adjust playDelay (ptime = now-playDelay)
@@ -934,18 +933,19 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 
 	var playBuffer = newestTime - ptime;		// this is how much data buffer time on hand
 	
-	if(bufferStats.length >= 10) targetPlayBuffer = playStats.mean + 3 * playStats.deviation;
-	else		  				 targetPlayBuffer = 10000;		// bleh
+	if(bufferStats.length >= 10) 	targetPlayBuffer = playStats.mean + 3 * playStats.deviation;
+	else		  					targetPlayBuffer = 5000;		// bleh
 	
 	// if this can work without using lagTime, then immune from clock-sync to host
 	if(playBuffer < 0) {				// play is ahead of newest, out of buffer				 
-		if(mlagTime < playDelay) playDelay += 1000;			// force at least some fallback increase
-		else					 playDelay = mlagTime;		// this keeps RT video from churning stats
+//		if(mlagTime < playDelay) playDelay += 1000;			// force at least some fallback increase
+//		else					 playDelay = mlagTime;		// this keeps RT video from churning stats
+		if(targetPlayBuffer > playDelay) playDelay = targetPlayBuffer;
+		else							 playDelay += 1000;		// simple forced amount?
 		if(debug) 
-			console.log('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay);
+			console.log('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay+', mlagTime: '+mlagTime);
 	}
-	else if(playBuffer > targetPlayBuffer) {	// got spec playBuffer queued up.
-//		playDelay = mlagTime;		// catch up 
+	else if(playBuffer > 1.5*targetPlayBuffer) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
 		playDelay = targetPlayBuffer;
 		if(debug) 
 			console.debug('CATCHUP, playBuffer: '+playBuffer+', playDelay: '+playDelay);
@@ -1576,7 +1576,9 @@ function setTimeNoSlider(time) {
 	var cb = document.getElementById('myDuration');
 	var durString = cb.options[cb.selectedIndex].text;
 
-	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')';
+	var rtString = "";
+	if(top.rtflag==RT) rtString = "  [RT Delay: " + (playDelay/1000).toFixed(1)+"s]";
+	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')' + rtString;
 	top.plotTime = time / 1000.;		// global, units=sec
 	
 	if(debug) console.debug('setTimeNoSlider: '+time);
