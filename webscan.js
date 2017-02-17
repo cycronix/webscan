@@ -655,7 +655,7 @@ function setParamValue(text, url, args) {
 }
 
 //----------------------------------------------------------------------------------------
-//setParamValue:  set value on callback from Ajax 
+//setParamText:  set text on callback from Ajax 
 
 function setParamText(text, url, args, time) {
 	var param = args[0];		// args passed thru == args of fetchData
@@ -800,15 +800,16 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 
 				// skootch adjust stripchart scrolling display with available data
 				if(i==0) {		// adjust on first plot param
+				/*
 					var tskootch = tright - gotTime[plots[j].params[0]];		// skootch to first param each plot
 					if(tskootch != null && tskootch != 0 && tskootch < mDur) {
 						tskootch = tskootch + 0.4 * dt;							// trade possible right-side gap for left (was 0.2)
-						if(Math.abs(tskootch-skootch) > pDur/10) {				// no jerking around
+						if(Math.abs(tskootch-skootch) > pDur/2) {				// no jerking around
 							if(debug) console.debug('new skootch, from: '+skootch+', to: '+tskootch);
 							skootch = tskootch;	
 						}
 					}
-					
+				*/	
 					plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (measured to right-edge of plot)
 				}
 				
@@ -2560,7 +2561,8 @@ function plot() {
 			var nosort=false;	// nosort causes smoothie plot glitches!
 			if(line.data.length > 20000) nosort = true;		// large plots can't afford sorting (exponential work!)
 //			console.debug('addValue, param: '+param+', line.length: '+line.data.length+', nosort: '+nosort);
-
+			time = Math.round(time);		// nearest msec (smoothie only handles msec)
+			
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 
 				line.maxValue = isNaN(line.maxValue) ? value : Math.max(line.maxValue, value);
@@ -2772,7 +2774,7 @@ function plot() {
 			if((scalingMode == "Auto") && (reScale==false)) {	// Auto scaling
 				if(vmax > this.ymax) this.ymax = vmax;			// increasing only
 				if(vmin < this.ymin) this.ymin = vmin;				
-				if(debug) console.debug("autoscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
+//				if(debug) console.debug("autoscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
 			}
 			else {												// Standard scaling
 				this.ymax = vmax;
