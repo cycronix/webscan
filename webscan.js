@@ -922,7 +922,11 @@ function playTime() {		// time at which to fetch (msec)
 // adjustPlayDelay:  try to figure out appropriate delay for "smooth" data display given variable data arrival time
 
 function adjustPlayDelay(ptime, lagTime, dt) {
-	if(!lagTime) return ptime;			// firewall
+	if(!lagTime) {				// no lagTime from header, e.g. DataTurbine
+		playDelay = 0;
+		return playTime();
+//		return ptime;			// firewall
+	}
 	
 	// Logic:
 	// if play ahead of newest, fall back
@@ -1580,7 +1584,7 @@ function setTimeNoSlider(time) {
 	var durString = cb.options[cb.selectedIndex].text;
 
 	var rtString = "";
-	if(top.rtflag==RT) rtString = "   [RT-" + (playDelay/1000).toFixed(1)+"s]";
+	if(top.rtflag==RT && playDelay!=0) rtString = "   [RT-" + (playDelay/1000).toFixed(1)+"s]";
 	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')' + rtString;
 	top.plotTime = time / 1000.;		// global, units=sec
 	
