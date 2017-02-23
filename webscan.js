@@ -772,7 +772,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
-		var dfetch = 0.05*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
+		var dfetch = 0.0*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
 		
 		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 		
