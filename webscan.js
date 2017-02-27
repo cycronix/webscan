@@ -630,12 +630,13 @@ function setParamValue(text, url, args) {
 	
 	if(debug) console.debug('plots['+pidx+'].nfetch: '+plots[pidx].nfetch);
 //	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot (can be out of order!?)
+	
 	if(singleStep && plots[pidx].nfetch==0) {												// last param this plot by counter
 		if(debug) console.debug('singleStep render, lastreqTime: '+lastreqTime+", tend: "+time);
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
 		else				plots[pidx].render(0);					// use last point got
 	} 
-
+	
 //	if(inProgress == 0) document.body.style.cursor = 'default';
 
 	if(nval > 0) {
@@ -700,12 +701,14 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	}
 	else 	return;		// notta
 
-	if(debug) 
-		console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
+	if(debug) console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
 	
+ 		// done in refreshCollection? 
 	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
 		if(debug) console.debug('singleStep render(binary), lastreqTime: '+lastreqTime+", tend: "+time);
-		plots[pidx].render(0);				// use last point got
+//		plots[pidx].render(0);				// use last point got
+		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
+		else				plots[pidx].render(0);					// use last point got
 	} 
 
 
@@ -1125,10 +1128,12 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 
 	if(!resetMode) {
 		if(onestep) {
+//			/*		// done in setParamValue()
 			for(var j=0; j<plots.length; j++) {
 				if(debug) console.debug('refresh render: '+lastreqTime);
 				plots[j].render(lastreqTime);	// see the data?
 			}
+//			*/
 			if(lastreqTime) setTime(lastreqTime);		// all setTime on display not fetch
 			if(reftime != "newest") updatePauseDisplay(PAUSE);
 		}
@@ -2107,7 +2112,7 @@ function mouseMove(e) {
 		else									mouseScale(e);
 		mouseIsStep = false;		// switch gears
 		var newT = Math.round(startMoveTime + inc);
-//		console.log('newT: '+newT+', startMoveTime: '+startMoveTime+', inc: '+inc);
+//		console.log('mouseMove newT: '+newT+', startMoveTime: '+startMoveTime+', inc: '+inc);
 
 		if(getTime() != newT || scalingMode == "Manual") {
 			refreshCollection(true,newT,mDur,"absolute");		// (time is right-edge!)
@@ -2643,6 +2648,8 @@ function plot() {
 		for(var key in this.lines) {
 			if(this.lines[key].data.length > 0) this.lines[key].resetBounds();		// only scale active lines
 		}
+//		console.debug('this.render, chartnow: '+chartnow);
+//		console.trace();
 		this.chart.render(this.canvas, chartnow);
 		this.chart.options.scaleSmoothing = 0.25;   		// was 0.125
 	};
