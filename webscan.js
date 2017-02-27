@@ -631,7 +631,7 @@ function setParamValue(text, url, args) {
 	if(debug) console.debug('plots['+pidx+'].nfetch: '+plots[pidx].nfetch);
 //	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot (can be out of order!?)
 	
-	if(singleStep && plots[pidx].nfetch==0) {												// last param this plot by counter
+	if(singleStep && plots[pidx].nfetch==0  && top.rtflag!=PAUSE) {												// last param this plot by counter
 		if(debug) console.debug('singleStep render, lastreqTime: '+lastreqTime+", tend: "+time);
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
 		else				plots[pidx].render(0);					// use last point got
@@ -704,7 +704,8 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	if(debug) console.debug("setParamBinary, nval: "+nval+", over trange: "+duration+", dt: "+dt+', reqtime: '+reqtime+', refTime: '+refTime);
 	
  		// done in refreshCollection? 
-	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1])) {			// last param this plot
+//	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1]) && top.rtflag!=PAUSE) {			// last param this plot
+	if(singleStep && plots[pidx].nfetch==0  && top.rtflag!=PAUSE) {												// last param this plot by counter
 		if(debug) console.debug('singleStep render(binary), lastreqTime: '+lastreqTime+", tend: "+time);
 //		plots[pidx].render(0);				// use last point got
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
