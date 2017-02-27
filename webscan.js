@@ -112,6 +112,8 @@ var lagTime = new Array();
 var bufferStats = [];
 var playStats = null;		// need to refresh on new RT
 
+var setRT=false;				// boolean to set RT button state
+
 //----------------------------------------------------------------------------------------
 //webscan:  top level main method
 
@@ -413,8 +415,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	// all setTime on display not fetch
 //	if(refTime=="absolute") setTimeParam(time,param);			// set time slider to request fetch time (only here, plus RT fetch)
 	
-	if(debug) 
-		console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
+	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	isImage = endsWith(param, ".jpg");	// this is a global, affects logic based on last-plot (still issue with mixed stripcharts/images)
@@ -484,7 +485,7 @@ function endsWith(str, suffix) {
 // setAudio:  make and play audio request
 
 //var ascan = null;
-var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+//var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function setAudio(url, param, plotidx, duration, time, refTime) {
 //	if(inProgress>1) {
@@ -545,16 +546,18 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 					if(stepDir != -2) {
 						// cluge for Safari, it won't play audio < 22050Hz, so upsample...
 						var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
-						if(isSafari && estRate < 22050) {
+						if((isSafari || isIOS) && estRate < 22050) {
 							var floats3 = new Array();
 							floats3.length = 3*floats.length;		// initialize len (faster)
 							for(j=0, k=0; j<nval; j++,k+=3) {
 								floats3[k] = floats3[k+1] = floats3[k+2] = floats[j];
 							}
-							new audioscan().playPcmChunk(floats3, 3*estRate);		// no reverse-play audio
+							playPcmChunk(floats3, 3*estRate);		// no reverse-play audio
+//							new audioscan().playPcmChunk(floats3, 3*estRate);		// no reverse-play audio
 						}
 						else {
-							new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
+//							new audioscan().playPcmChunk(floats, estRate);		// no reverse-play audio
+							playPcmChunk(floats, estRate);		// no reverse-play audio
 						}
 					}
 				}
@@ -683,7 +686,11 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	var dt = duration / values.length;		// deduce timestamps
 	var time=reqtime;
 	
-//	inProgress--;
+	// presume time is what we asked for
+	if(nval > 0) {
+		lastgotTime = gotTime[param] = reqtime + duration;
+	}
+	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+gotTime[param]);
 	
 	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
 		for(var i=0; i<nval; i++) {
@@ -701,17 +708,13 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 		plots[pidx].render(0);				// use last point got
 	} 
 
-//	if(inProgress < 0) inProgress=0;		// failsafe
-	
-	if(nval > 0) {
-		var plot0=0;
-		lastgotTime = time;
-//		if(time > newTime[param]) 
-		gotTime[param] = time;
-//		console.debug('setParamBinary, newTime: '+newTime[param]);
-	}
 
-	if(debug) console.log("setParamBinary url: "+url+", nval: "+nval+", param: "+param+", paramTime: "+gotTime[param]);
+//	if(nval > 0) {
+//		var plot0=0;
+//		lastgotTime = time;
+//		console.debug('setParamBinary nval: '+nval+', lastgotTime: '+lastgotTime);
+//		gotTime[param] = time;
+//	}
 }
 
 //----------------------------------------------------------------------------------------
@@ -755,6 +758,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var anyplots=true;
 	
 	function doRT(dt) {
+		if(dt==null) dt = tDelay;
+		
 		if(debug) console.debug('doRT! overflow? inProgress: '+inProgress+', numPlotted: '+numPlot);
 		
 		if(numPlot>0 && inProgress>=(numPlot+numImage)) {	// don't overwhelm!?
@@ -772,7 +777,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
 		
-		var dfetch = 0.0*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
+		var dfetch = 0.2*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
 		
 		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
 		
@@ -1063,8 +1068,7 @@ function stepCollection(iplot, time, refdir) {
 function refreshCollection(onestep, time, fetchdur, reftime) {				// time is right-edge time
 //	onestep=false for refilling plot and continuing with RT data 
 	refreshInProgress=true;
-	if(debug) 
-		console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep);
+	if(debug) console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep+', newestTime: '+newestTime);
 
 	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
@@ -1095,7 +1099,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 		if(lastreqTime > now) 		{ time = 0; reftime="newest"; lastreqTime=0; }
 		else if(time < oldestTime) 	{ time = 0; reftime="oldest"; lastreqTime=0; }
 		
-		if(debug) console.debug('>>> time: '+time+', oldestTime: '+oldestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
+		if(debug) console.debug('>>> time: '+time+', newestTime: '+newestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 	}
 
 	if(onestep) {		// prefetch only if onestep?
@@ -1141,7 +1145,12 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 //	if(reftime=="oldest") setTime(oldestTime);						// ??
 	
 	if(reftime=="newest" && newestTime!=0) setTime(newestTime);						// setTime is right-edge time
-	if(reftime=="oldest" && oldestTime!=0) setTime(oldestTime+getDuration());		
+	if(reftime=="oldest" && oldestTime!=0) setTime(oldestTime+getDuration());	
+	
+	if(setRT) {
+		document.getElementById('play').innerHTML = 'RT';			//  catch button state here
+		setRT = false;
+	}
 }
 
 //----------------------------------------------------------------------------------------
@@ -1345,6 +1354,7 @@ function setPlay(mode, time) {
 	top.rtflag = mode;				
 	setSingleStep();
 	if(debug) console.debug('setPlay: mode: '+mode+', time: '+time+', singleStep: '+singleStep);
+		
 	if(mode==PAUSE) {				// stop RT
 		stopRT();
 		inProgress=0;			// make sure not spinning
@@ -1354,8 +1364,6 @@ function setPlay(mode, time) {
 	}
 	else {
 		if(debug) console.debug('starting plots, singlestep: '+singleStep);
-//		if(!singleStep)	// no restart animation if singlestep mode
-//			for(var i=0; i<plots.length; i++) plots[i].start();
 		rtCollection(time);
 		document.getElementById('play').innerHTML = '||';
 	}
@@ -1410,9 +1418,8 @@ function rePlay() {
 //stopRT:  clear RT timer
 
 function stopRT() {
-	if(debug) console.log("stopRT.");
+	if(debug) console.log("stopRT. playStr: "+playStr);
 	if(intervalID != 0) clearInterval(intervalID);
-//	if(intervalID2 != 0) clearInterval(intervalID2);
 	if(intervalID2 != 0) clearTimeout(intervalID2);
 	intervalID = intervalID2 = 0;
 	if(intervalID3 != 0) clearTimeout(intervalID3);		// turn off playRvs timer (only) here
@@ -1671,9 +1678,9 @@ function resetLimits(pplot) {
 function getLimits(forceFlagOld, forceFlagNew) {
 	if(nplot<=0 || !plots[0] || !plots[0].params || plots[0].params.length<=0) return;		// notta
 	
-	var iplot=0;		// find first plot with channel
-	for(iplot=0; iplot<nplot; iplot++) if(plots[iplot] && plots[iplot].params.length > 0) break;
-	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]+", forceOld: "+forceFlagOld+', forceNew+', forceFlagNew);
+//	var iplot=0;		// find first plot with channel
+//	for(iplot=0; iplot<nplot; iplot++) if(plots[iplot] && plots[iplot].params.length > 0) break;
+//	if(debug) console.debug('!!!!getLimits, newestTime: '+newestTime+", oldestTime: "+oldestTime+", limitParam: "+plots[iplot].params[0]+", forceOld: "+forceFlagOld+', forceNew+', forceFlagNew);
 
 	if(newestTime == 0 || newestTime < oldestTime || forceFlagNew) {
 		updateNewest();
@@ -1968,6 +1975,7 @@ var mouseClickX=0;
 
 function mouseDown(e) {
 //	console.log('mouseDown');
+
     e = e || window.event;
 	e.preventDefault();		// stop scrolling
 
@@ -2044,6 +2052,8 @@ function mouseOut(e) {
 }
 
 function mouseUp(e) {
+//	unlock();				// unlock IOS audio?
+	
 //	console.log('mouseUp');
 //	e.preventDefault();		// for IE
 	if(mouseIsStep && getTime() == startMoveTime) {
@@ -2266,7 +2276,6 @@ function addChanSelect() {
 			plots[pplot].params.length == 1) {
 		resetLimits(pplot);
 		rebuildPageWait(20);
-//		goEOF();
 		goBOF();
 	}
 	else rebuildPageWait(20);
@@ -2306,8 +2315,8 @@ function goBOF() {
 	reScale = true;
 	stepDir= -1;
 	if(debug) console.log("goBOF");
-//	goTime(0);		// more robust limit checks?
-	refreshCollection(true,getDuration(),getDuration(),"oldest");	// time is right-edge!
+//	refreshCollection(true,getDuration(),getDuration(),"oldest");	// time is right-edge!
+	goTime(0);			// absolute BOF per oldestTime (same all chans)
 }
 
 function goPause() {
@@ -2328,11 +2337,16 @@ function playFwd() {
 }
 
 function togglePlay(el){
+//	replayPcmChunk();
+//	unlock();		// unlock iOS audio?
+	
 	if(el.innerHTML=="||") { 
 		el.innerHTML=playStr;  
 		goPause(); 
 	}
 	else { 
+		if(isIOS) replayPcmChunk();		// unlock IOS audio
+
 		if(document.getElementById('play').innerHTML == 'RT') 
 				goRT();
 		else 	playFwd(); 
@@ -2348,11 +2362,11 @@ function goEOF() {
 	reScale = true;
 	stepDir= 1;
 	if(debug) console.log("goEOF");
-	refreshCollection(true,0,getDuration(),"newest");
+//	refreshCollection(true,0,getDuration(),"newest");
+//	goTime(100);			// absolute EOF per newestTime (same all chans)
+	refreshCollection(true,newestTime,getDuration(),"absolute");
+	setRT = true;		// set button state to RT
 	document.getElementById('play').innerHTML = 'RT';
-
-//	document.getElementById('RTlab').innerHTML = 'RT';
-//	timeOut = setTimeout( function(){ if(isPause()) document.getElementById('RTlab').innerHTML = '>'; },10000); 
 }
 
 function goRT() {
@@ -2370,26 +2384,19 @@ var maxwaitTime=0;
 function goTime(percentTime) {
 	goPause();		// make sure stopped
 	stepDir=0;		// turn off playRvs
-	if(percentTime==0) {
-//		getLimits(1,0);		// force new limits
-		refreshCollection(true,getDuration(),getDuration(),"oldest");		// right-edge time
-	}
-	else if (percentTime == 100) {
-//		getLimits(0,1);		// force new limits
-		refreshCollection(true,0,getDuration(),"newest");
-	}
-	else {
+
+//	if(percentTime==0) refreshCollection(true,getDuration(),getDuration(),"oldest");		// right-edge time
+//	else if (percentTime == 100) refreshCollection(true,0,getDuration(),"newest");
+//	else {
+		
 		getLimits(0,0);				// make sure limits are known...
 		++maxwaitTime;
 		if(newestTime==0 && maxwaitTime<50) {		// hopefully doesn't happen, obscure problems if lumber on
-//		if(newestTime==0) {		// hopefully doesn't happen, obscure problems if lumber on
-
 			if(debug) console.debug("waiting for limits to be set...");
-//			setTimeout(function() { goTime2(percentTime); }, 500);
 			setTimeout(function() { goTime(percentTime); }, 100);		// possible infinite loop?
 		}
 		else goTime2(percentTime);
-	}
+//	}
 }
 
 // go to percentTime, where time is left-edge (oldest) of duration time interval
@@ -2413,8 +2420,7 @@ function goTime2(percentTime) {
 	if(gtime < oldestTime+mDur) gtime = oldestTime+mDur;
 	if(gtime > newestTime) gtime = newestTime;
 	
-	if(debug) 
-		console.debug("goTime: "+gtime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
+	if(debug) console.debug("goTime: "+gtime+", percent: "+percentTime+", oldestTime: "+oldestTime+", newestTime: "+newestTime+", mDur: "+mDur);
 	refreshCollection(true,gtime,mDur,"absolute");	// go to derived absolute time
 	
 	// all setTime on display not fetch
@@ -2999,19 +3005,22 @@ function plotbox() {
 
 //---------------------------------------------------------------------------------	
 //var audioContext=null;
-var audioAlert=true;
-function audioscan() {
-	this.rate = 22050;			// hard code audio rate for now.  22050 is slowest Web Audio supports
-//	this.rate = 8000;			// need to derive rate...
+var audioTime = 0;		// audio timing
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+var lastAudio;
+var lastRate;
+
+playPcmChunk = function(audio, srate) {
+	lastAudio = audio;
+	lastRate = srate;
 	
+	this.rate = 22050;			// hard code audio rate for now.  22050 is slowest Web Audio supports
+//	 console.debug('playPcmChunk, length: '+audio.length);
+
 	if(audioContext == null) {
-		audioContext = new (window.AudioContext || window.webkitAudioContext)();
-	}	
-	if(audioContext == null) {
-		if(audioAlert) {
-//			audioAlert=false;		// one time alert
-			alert('no audio context available with this browser');
-		}
+		alert('no audio context available with this browser');
 		goPause();
 		return;
 	}
@@ -3019,10 +3028,90 @@ function audioscan() {
 	var audioSource = audioContext.createBufferSource();
 	audioSource.connect(audioContext.destination);
 	
+	if(srate <= 0) srate = this.rate;
+
+	if(audio.length <= 0) {
+		if(debug) console.warn("playPcmChunk zero length audio!");
+		return;
+	}
+	
+    try {
+        var audioBuffer = audioContext.createBuffer(1, audio.length, srate);
+        
+        audioBuffer.getChannelData(0).set(audio);
+        audioSource.buffer = audioBuffer;
+        var audioDuration = audioBuffer.duration;
+        var audioDeltaTime = audioTime - audioContext.currentTime;
+        if(audioDeltaTime > (getDuration()/1000.) || audioDeltaTime < 0) {
+//           	console.debug('RESET audio time from : '+audioTime+' to: '+audioContext.currentTime);
+        	audioTime = audioContext.currentTime;	// reset audio timing
+        }
+        audioSource.start ? audioSource.start(audioTime) : audioSource.noteOn(audioTime);			// play with audio timing
+        audioTime += audioDuration;																	// audio timing
+    } catch(err) { 
+        console.warn("Cannot play audio! err: "+err);          
+    }
+}
+
+// following nonsense for iOS to unlock audio to user interaction
+ replayPcmChunk = function() {
+	if(lastAudio==null) return;
+	lastAudio.length = 1;
+	playPcmChunk(lastAudio, lastRate);
+}
+
+//----------------------------------------------------------------------------------------
+//function to unlock IOS audio (ref: https://paulbakaus.com/tutorials/html5/web-audio-on-ios/)
+
+var isUnlocked = false;
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+function unlock() {
+	console.debug('unlock, isIOS: '+isIOS+', unlocked: '+this.isUnlocked);
+
+	if(isIOS || this.unlocked) {
+		return;
+	}
+	
+	// create empty buffer and play it
+	var buffer = audioContext.createBuffer(1, 1, 22050);
+	var source = audioContext.createBufferSource();
+	source.buffer = buffer;
+	source.connect(audioContext.destination);
+	source.start ? source.start(0) : source.noteOn(0);	
+//	source.noteOn(0);
+
+	// by checking the play state after some time, we know if we're really unlocked
+	setTimeout(function() {
+		if((source.playbackState === source.PLAYING_STATE || source.playbackState === source.FINISHED_STATE)) {
+			isUnlocked = true;
+			console.debug('unlocked!');
+		}
+	}, 0);
+}
+
+//----------------------------------------------------------------------------------------
+/*
+function audioscan() {
+	this.rate = 22050;			// hard code audio rate for now.  22050 is slowest Web Audio supports
+//	this.rate = 8000;			// need to derive rate...
+	
+	if(audioContext == null) {
+		audioContext = new (window.AudioContext || window.webkitAudioContext)();
+	}	
+	
+	if(audioContext == null) {
+		alert('no audio context available with this browser');
+		goPause();
+		return;
+	}
+	
+	var audioSource = audioContext.createBufferSource();
+	audioSource.connect(audioContext.destination);
+
 	this.playPcmChunk = function(audio, srate) {
 		if(srate <= 0) srate = this.rate;
 
-//		TO DO:  use audio in audio.wav (vs pcm) format, then skip the createBuffer() call?
 		if(audio.length <= 0) {
 			if(debug) console.warn("playPcmChunk zero length audio!");
 //			inProgress=0;
@@ -3031,14 +3120,28 @@ function audioscan() {
 		
 //		var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 && navigator.userAgent && !navigator.userAgent.match('CriOS');
         try {
+//        	var maxlen = srate * tDelay/1000;		// limit to one screen update interval
+//        	if(audio.length > maxlen) audio = audio.slice(0,maxlen-1);
+//       	console.debug('audio.length: '+audio.length+', srate: '+srate+', maxlen: '+maxlen);
             var audioBuffer = audioContext.createBuffer(1, audio.length, srate);
+            
             audioBuffer.getChannelData(0).set(audio);
             audioSource.buffer = audioBuffer;
-            audioSource.start ? audioSource.start(0) : audioSource.noteOn(0);
+            var audioDuration = audioBuffer.duration;
+            var audioDeltaTime = audioTime - audioContext.currentTime;
+// console.debug('audioTime: '+audioTime+', ctx.currentTime: '+audioContext.currentTime+', audioBuffer.duration: '+audioDuration+', audioDeltaTime: '+audioDeltaTime);
+//			if(audioDeltaTime < 0) return;		// just drop vs overlap?
+
+            if(audioDeltaTime > (getDuration()/1000.) || audioDeltaTime < 0) {
+ //           	console.debug('RESET audio time from : '+audioTime+' to: '+audioContext.currentTime);
+            	audioTime = audioContext.currentTime;	// reset audio timing
+            }
+//            audioSource.start ? audioSource.start(0) : audioSource.noteOn(0);
+            audioSource.start ? audioSource.start(audioTime) : audioSource.noteOn(audioTime);			// play with audio timing
+            audioTime += audioDuration;																	// audio timing
         } catch(err) { 
-            console.warn("Cannot play audio!");          
+            console.warn("Cannot play audio! err: "+err);          
         }
-        
 	}
     
     this.playMp3Chunk = function(data) {
@@ -3126,9 +3229,8 @@ function audioscan() {
 
 		return sarray;
 	}
-	
 }
-
+*/
 //----------------------------------------------------------------------------------------	
 /**
  * VidScan

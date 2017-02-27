@@ -140,7 +140,6 @@ html, body {
 
 #dtitle{
 	position: absolute;
-	border: 0px solid white;
 	z-index:96;
 	width: 100%;
 }
@@ -179,8 +178,8 @@ html, body {
 }
 
 #dcontrols{
-        position: absolute;
-        width: 100%;
+    position: absolute;
+    width: 100%;
 	bottom: 0em;
 }
 
@@ -190,6 +189,10 @@ html, body {
         height: 100%;
         width: 100%;
         z-index:98;
+}
+
+#title{
+        border: 0px solid white;
 }
 
 input[type=radio] {
