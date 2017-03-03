@@ -1611,7 +1611,10 @@ function setTimeNoSlider(time) {
 	var durString = cb.options[cb.selectedIndex].text;
 
 	var rtString = "";
-	if(top.rtflag==RT && playDelay!=0) rtString = "   [RT-" + (playDelay/1000).toFixed(1)+"s]";
+	if(top.rtflag==RT && playDelay!=0) {
+		if(playDelay > 0) 	rtString = "   [RT-" + (playDelay/1000).toFixed(1)+"s]";
+		else				rtString = "   [RT+" + (-playDelay/1000).toFixed(1)+"s]";
+	}
 	document.getElementById("timestamp").innerHTML = dstring + ' (' + durString + ')' + rtString;
 	top.plotTime = time / 1000.;		// global, units=sec
 	
@@ -1936,13 +1939,16 @@ function buildCharts() {
 //drag-plot utilities
 
 //figure out if mouse or touch events supported
-isTouchSupported = 		'ontouchstart' in window 			// works on most browsers 
-					|| 	'onmsgesturechange' in window;		// IE10
+//isTouchSupported = 		'ontouchstart' in window 			// works on most browsers 
+//					|| 	'onmsgesturechange' in window;		// IE10
+
+//var isTouchSupported = 'ontouchstart' in window || navigator.msMaxTouchPoints;		// MJM 3/2017
+var isTouchSupported =  ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0) || (typeof el.ongesturestart == "function");
 
 isPointerEnabled = window.navigator.msPointerEnabled || window.MSPointerEvent || window.PointerEvent;
-if(isPointerEnabled) isTouchSupported = false;				// IE10 pointer/gesture events not yet supported
+//if(isPointerEnabled) isTouchSupported = false;				// IE10 pointer/gesture events not yet supported
+isPointerEnabled = false;			// messes up Android mouseMove?
 
-//isTouchSupported = false;			// for debugging 
 var startEvent = isTouchSupported ? (isPointerEnabled ? (window.PointerEvent ? 'pointerdown' : 'MSPointerDown') : 'touchstart') : 'mousedown';
 var moveEvent = isTouchSupported ?  (isPointerEnabled ? (window.PointerEvent ? 'pointermove' : 'MSPointerMove') : 'touchmove')  : 'mousemove';
 var endEvent = isTouchSupported ?   (isPointerEnabled ? (window.PointerEvent ? 'pointerup'   : 'MSPointerUp')   : 'touchend')   : 'mouseup';
@@ -1968,16 +1974,21 @@ var thisplot=0;
 var mouseIsStep=false;
 var oldStepTime=0;
 var mouseClickX=0;
+var mouseDebug=false;
 
 function mouseDown(e) {
-//	console.log('mouseDown');
-
-    e = e || window.event;
 	e.preventDefault();		// stop scrolling
 
+	if(debug||mouseDebug) console.log('mouseDown'+', isTouchSupported: '+isTouchSupported+', isPointerEnabled: '+isPointerEnabled);
+    e = e || window.event;
+
     // filter out right-mouse clicks
-    if 		("which" in e) 	if(e.which == 3) return; 	// Gecko (Firefox), WebKit (Safari/Chrome) & Opera
-    else if ("button" in e)	if(e.button == 2) return;  // IE, Opera 
+    if 		("which" in e) 	{
+    	if(e.which == 3) return; 	// Gecko (Firefox), WebKit (Safari/Chrome) & Opera
+    }
+    else if ("button" in e)	{
+    	if(e.button == 2) return;  // IE, Opera 
+    }
 	
 	thisplot = mouseClickPlot(e);
 	thiswin = this;		// for mouseout
@@ -1986,7 +1997,6 @@ function mouseDown(e) {
 	
 	reScale = true;
 	mouseIsMove=false;		// not yet
-//	console.log('mousedown, e: '+e.target.id);
 	setPlay(PAUSE,0);
 	
 	if(isTouchSupported) { 	
@@ -1998,7 +2008,7 @@ function mouseDown(e) {
 			rect1x = e.touches[0].clientX; 	
 			rect1y = e.touches[0].clientY; 
 		}
-		if(e.touches.length>1) rect2y = e.touches[1].clientY; 
+		if(e.touches && (e.touches.length>1)) rect2y = e.touches[1].clientY; 
 	} 
 	else {	
 		rect1x = e.clientX;				
@@ -2029,7 +2039,7 @@ function mouseStep(dir) {
 	if(!refreshInProgress) {
 		var stepTime = getTime();
 		stepCollection(thisplot,stepTime,dir);
-		if(debug) console.debug('mouseIsStep: '+mouseIsStep+', stepTime: '+stepTime+' oldStepTime: '+oldStepTime+', getTime: '+getTime());
+		if(debug||mouseDebug) console.debug('mouseIsStep: '+mouseIsStep+', stepTime: '+stepTime+' oldStepTime: '+oldStepTime+', getTime: '+getTime());
 		oldStepTime = stepTime;
 		setTimeSlider(getTime());
 	}
@@ -2037,7 +2047,7 @@ function mouseStep(dir) {
 }
 
 function mouseOut(e) {
-//	console.log('mouseOut');
+	if(debug||mouseDebug) console.log('mouseOut');
 //	e.preventDefault();		// for IE
 
 	if(thiswin) {
@@ -2051,7 +2061,7 @@ function mouseOut(e) {
 function mouseUp(e) {
 //	unlock();				// unlock IOS audio?
 	
-//	console.log('mouseUp');
+	if(debug||mouseDebug) console.log('mouseUp');
 //	e.preventDefault();		// for IE
 	if(mouseIsStep && getTime() == startMoveTime) {
 		if(mouseClickX >= 0.5) 	stepCollection(thisplot,startMoveTime,"next");
@@ -2078,7 +2088,7 @@ var mouseIsMove=false;
 function mouseMove(e) {
 	e.preventDefault();				// stop scrolling
 
-//	console.log('mouseMove, mouseIsStep: '+mouseIsStep);
+	if(debug||mouseDebug) console.log('mouseMove, mouseIsStep: '+mouseIsStep);
 	if(mouseIsStep) return;			// no shimmy
 	var now = Date().now;
 	if((now - lastMove) < 100) return;	// limit update rate
@@ -2127,7 +2137,7 @@ function mouseScale(e) {
 
 	var relStart = rect1y/recth - 0.5;
 	var relStepY = (eclientY - rect1y) / recth;
-//	if(debug) console.debug('rect1y: '+rect1y+', recth: '+recth+', eclientY: '+eclientY+', mouseScale: '+relStepY+', relStepY: '+relStepY);
+	if(debug||mouseDebug) console.debug('rect1y: '+rect1y+', recth: '+recth+', eclientY: '+eclientY+', mouseScale: '+relStepY+', relStepY: '+relStepY);
 	
 	rect1y = eclientY;								// reset baseline for setScale logic
 
@@ -2150,7 +2160,7 @@ function pinchScale(e) {
 	rect1y = e.touches[0].clientY;			// reset baseline for setScale logic
 	rect2y = e.touches[1].clientY;
 
-//	console.debug('pinchScale: '+scale+', erecty: '+erecty+', drecty: '+drecty);
+	if(debug||mouseDebug) console.debug('pinchScale: '+scale+', erecty: '+erecty+', drecty: '+drecty);
 
 	plots[mouseClickPlot(e)].display.setScale(null, scale);
 }
@@ -2158,7 +2168,7 @@ function pinchScale(e) {
 function mouseWheel(e) {
 	if(inProgress || refreshInProgress || scalingMode!="Manual") return;			// pacing
 	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
-//	console.debug('mouseWheel delta: '+delta);
+	if(debug||mouseDebug) console.debug('mouseWheel delta: '+delta);
 	plots[mouseClickPlot(e)].display.setScale(null, 1.-(delta/4.));
 	refreshCollection(true,getTime(),getDuration(),"absolute");
 }
