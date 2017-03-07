@@ -1943,7 +1943,8 @@ function buildCharts() {
 //					|| 	'onmsgesturechange' in window;		// IE10
 
 //var isTouchSupported = 'ontouchstart' in window || navigator.msMaxTouchPoints;		// MJM 3/2017
-var isTouchSupported =  ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0) || (typeof el.ongesturestart == "function");
+//var isTouchSupported =  ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0) || (typeof el.ongesturestart == "function");
+var isTouchSupported =  ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
 isPointerEnabled = window.navigator.msPointerEnabled || window.MSPointerEvent || window.PointerEvent;
 //if(isPointerEnabled) isTouchSupported = false;				// IE10 pointer/gesture events not yet supported
