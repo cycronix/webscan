@@ -1110,8 +1110,9 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 		lastreqTime = time;					// time=left-edge, lastreqTime=right-edge time
 
 		if(debug) console.debug('get time: '+time+', oldestTime: '+oldestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
-		if(lastreqTime > now) 		{ time = 0; reftime="newest"; lastreqTime=0; }
-		else if(time < oldestTime) 	{ time = 0; reftime="oldest"; lastreqTime=0; }
+// don't auto-switch to newest/oldest, request time may be out of sync with system clock
+//		if(lastreqTime > now) 		{ time = 0; reftime="newest"; lastreqTime=0; }
+//		else if(time < oldestTime) 	{ time = 0; reftime="oldest"; lastreqTime=0; }
 		
 		if(debug) console.debug('>>> time: '+time+', newestTime: '+newestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 	}
