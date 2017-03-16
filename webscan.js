@@ -1112,7 +1112,8 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 		if(debug) console.debug('get time: '+time+', oldestTime: '+oldestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 // don't auto-switch to newest/oldest, request time may be out of sync with system clock
 //		if(lastreqTime > now) 		{ time = 0; reftime="newest"; lastreqTime=0; }
-//		else if(time < oldestTime) 	{ time = 0; reftime="oldest"; lastreqTime=0; }
+		if(lastreqTime > newestTime) 			{ time = 0; reftime="newest"; lastreqTime=0; }
+		else if((time-fetchdur) < oldestTime) 	{ time = 0; reftime="oldest"; lastreqTime=0; }
 		
 		if(debug) console.debug('>>> time: '+time+', newestTime: '+newestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 	}
@@ -1421,7 +1422,8 @@ function rePlay() {
 	else if(document.getElementById('play').innerHTML=="||") mode = PLAY;
 
 	if(mode==PAUSE && !isImage && oldestTime > 0) {
-		refreshCollection(true,getTime()+getDuration(),getDuration(),"absolute");	// auto-refill plots to full duration?? (time is right-edge!)
+//		refreshCollection(true,getTime()+getDuration(),getDuration(),"absolute");	// auto-refill plots to full duration?? (time is right-edge!)
+		refreshCollection(true,getTime(),getDuration(),"absolute");		// auto-refill plots to full duration?? (getTime is right-edge!)
 	}
 	else if(mode==PLAY) {
 		playFwd();
@@ -2497,11 +2499,22 @@ function plot() {
 		},
 //		timestampFormatter:SmoothieChart.timeFormatter,
 		timestampFormatter:myTimeFormatter,
-		timerangeFormatter:myRangeFormatter
+		timerangeFormatter:myRangeFormatter,
+		numPointsFormatter:myPtsFormatter
 	});
 
 	this.chart.options.scaleSmoothing = 0.25;		// default 0.125
 	this.chart.stop();		// ?? init
+	
+	//----------------------------------------------------
+	// set short numPts value with letter suffix
+	function myPtsFormatter(val) {
+		return numberWithCommas(val) + ' pts';
+	}
+	
+	function numberWithCommas(x) {
+	    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	}
 	
 	//----------------------------------------------------
 	// set short range value with letter suffix
@@ -2580,7 +2593,9 @@ function plot() {
 			var nosort=false;	// nosort causes smoothie plot glitches!
 			if(line.data.length > 20000) nosort = true;		// large plots can't afford sorting (exponential work!)
 //			console.debug('addValue, param: '+param+', line.length: '+line.data.length+', nosort: '+nosort);
-			time = Math.round(time);		// nearest msec (smoothie only handles msec)
+
+			// don't round to ints, can plot data at > 1Ksa/sec (MJM 3/16/2017)
+			//			time = Math.round(time);		// nearest msec (smoothie only handles msec)
 			
 			if(nosort) {		// try faster append without sort
 				line.data.push([time, value]);		// try faster push 

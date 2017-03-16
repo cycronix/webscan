@@ -670,6 +670,7 @@
       }
     }
 
+    var numPtsTotal = 0;			// MJM
     // For each data set...
     for (var d = 0; d < this.seriesSet.length; d++) {
       context.save();
@@ -687,6 +688,7 @@
       context.beginPath();
       // Retain lastX, lastY for calculating the control points of bezier curves.
       var firstX = 0, lastX = 0, lastY = 0;
+      numPtsTotal += dataSet.length;
       for (var i = 0; i < dataSet.length && dataSet.length !== 1; i++) {
         var x = timeToXPixel(dataSet[i][0]),
             y = valueToYPixel(dataSet[i][1]);
@@ -775,6 +777,12 @@
           context.fillText(minValueString, labelPos, dimensions.height - 2);
       }
 
+      // MJM display number of points:
+      if(chartOptions.numPointsFormatter) {
+    	  var numValueString = chartOptions.numPointsFormatter(numPtsTotal);
+          context.fillText(numValueString, 2, chartOptions.labels.fontSize);
+      }
+      
     }
 
     // Display timestamps along x-axis at the bottom of the chart.
