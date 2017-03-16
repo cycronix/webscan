@@ -688,11 +688,13 @@
       context.beginPath();
       // Retain lastX, lastY for calculating the control points of bezier curves.
       var firstX = 0, lastX = 0, lastY = 0;
-      numPtsTotal += dataSet.length;
+//      numPtsTotal += dataSet.length;		// MJM
       for (var i = 0; i < dataSet.length && dataSet.length !== 1; i++) {
         var x = timeToXPixel(dataSet[i][0]),
             y = valueToYPixel(dataSet[i][1]);
 
+        if(x>=0 && x<=dimensions.width) numPtsTotal++;			// MJM
+        
         if (i === 0) {
           firstX = x;
           context.moveTo(x, y);
