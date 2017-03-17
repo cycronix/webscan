@@ -2509,6 +2509,7 @@ function plot() {
 	//----------------------------------------------------
 	// set short numPts value with letter suffix
 	function myPtsFormatter(val) {
+		if(val <= 0) return "";
 		return numberWithCommas(val) + ' pts';
 	}
 	
