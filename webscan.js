@@ -1124,10 +1124,12 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 			plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
 			for(var i=0; i<plots[j].params.length; i++) {
 				var isMedia = endsWith(plots[j].params[i], ".jpg") || endsWith(plots[j].params[i], ".txt");
-				if(isMedia) fetchdur = 0;
+				var fetchd = fetchdur;
+				if(isMedia) fetchd = 0;
+//				console.debug('isMedia: '+isMedia+', plots['+j+'].params['+i+']: '+plots[j].params[i]+', fetchd: '+fetchd);
 //				if(isMedia) fetchData(plots[j].params[i], j, fetchdur, time, reftime);			// fetch new data (async)
 //				else 		
-					fetchData(plots[j].params[i], j, fetchdur, time-fetchdur, reftime);	
+					fetchData(plots[j].params[i], j, fetchd, time-fetchd, reftime);	
 			}	
 		}	
 	}
