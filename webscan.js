@@ -1,5 +1,5 @@
 /*
-Copyright 2016 Cycronix
+Copyright 2017 Cycronix
 
 WebScan V1.0 was developed under NASA Contract NAS4-00047 
 and the U.S. Government retains certain rights.
@@ -950,7 +950,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	targetPlayBuffer = 1000;
 	if(bufferStats.length >= 5) {
 		targetPlayDelay = playStats.mean + 3 * playStats.deviation;
-		targetPlayBuffer = 1000 + 3 * playStats.deviation;
+		targetPlayBuffer = 200 + 3 * playStats.deviation;		// was 1000+, try tighter sync
 	}
 
 	if(debug) 
@@ -966,7 +966,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	}
 	else if(playBuffer > targetPlayBuffer) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
 		var tback = playDelay - targetPlayDelay;
-		if(tback > 100000) 	playDelay = targetPlayDelay;
+		if(tback > 600000) 	playDelay = targetPlayDelay;		// more than 10 minutes, jump ahead...
 		else if(tback > 0) 	playDelay = (playDelay + targetPlayDelay) / 2;		// slew
 		else 				playDelay = mlagTime;
 //		else	playDelay -= 1000;
