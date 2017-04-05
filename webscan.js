@@ -2826,6 +2826,14 @@ function plot() {
 				if(debug) console.debug("stdscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
 			}
 
+			// keep it zero-centered if close
+			var aymax = Math.abs(this.ymax);
+			var aymin = Math.abs(this.ymin);
+			if((this.ymin*this.ymax)<0 && (aymax / aymin) < 3 && (aymax / aymin) > 0.3) {
+				if(aymax>aymin) this.ymin = Math.sign(this.ymin)*aymax;
+				else			this.ymax = Math.sign(this.ymax)*aymin;
+			}
+			
 			this.yrange = this.ymax - this.ymin;
 			this.yoffset = this.ymin + this.yrange / 2;
 
