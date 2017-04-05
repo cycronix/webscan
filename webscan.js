@@ -754,7 +754,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	skootch = tDelay;		// init (was 2*tDelay)
 	var tfetch = 0;
 	var tright = 0;
-
+	var pDur = getDuration();	// msec
 	var numPlot = 0;		// keep track of number in-flight
 	var numImage = 0;		// count images for inProgress check
 
@@ -773,23 +773,21 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		}
 		
 		updatePauseDisplay(top.rtflag);
-		var pDur = getDuration();		// msec
 		tright = playTime(); // - skootch;				// right-edge time (skootched for lip-sync?)
-		
+/*		
 		// global timing logic:
 		var tleft = tright - pDur;							// left-edge time
 		if(tleft > lastgotTime) tfetch = tleft;			// fetch from left-edge time
 		else					tfetch = lastgotTime;	// unless already have some (gapless)		// this should be on per-param basis!!!!!
-		
 		var dfetch = 0.2*dt + tright - tfetch;			// very little extra (avoid audio overlap) was 0.1*
-		
-		if(debug) console.debug('dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
-		
+		if(debug) console.debug('1dfetch: '+dfetch+', dt: '+dt+', tfetch: '+tfetch+', tleft: '+tleft+', lastgotTime: '+lastgotTime+', tright: '+tright);
+*/		
 		if(!rt_init) {				// delay scrolling until SECOND time through for smooth startup
 			for(var j=0; j<plots.length; j++) plots[j].start();			
 		}
 		
 //		console.log("tfetch: "+tfetch+", newestTime: "+newestTime+", tright: "+tright+", top.rtflag: "+top.rtflag);
+		// second or subsequent time in, bail if nothing to plot:
 		if(!anyplots || ((tright>newestTime) && (top.rtflag!=RT)) ) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor.  tright: '+tright+', newestTime: '+newestTime);
 			clearInterval(intervalID);		// notta to do
@@ -801,31 +799,30 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		numPlot = 0;			// recalc
 		anyplots = false;		// unless reset below
 		for(var j=0; j<plots.length; j++) {
-
+			var firstchan=true;
 			for(var i=0; i<plots[j].params.length; i++) {
 				var param = plots[j].params[i];
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
-				anyplots=true;	
+
+				if(top.rtflag==RT && !anyplots) 				// adjust RT delay only for first chan, first plot as master
+					tright = adjustPlayDelay(tright, lagTime[param], dt);	// adjust playDelay (ptime = now-playDelay)
+				
 
 				// skootch adjust stripchart scrolling display with available data
-				if(i==0) {		// adjust on first plot param
-				/*
-					var tskootch = tright - gotTime[plots[j].params[0]];		// skootch to first param each plot
-					if(tskootch != null && tskootch != 0 && tskootch < mDur) {
-						tskootch = tskootch + 0.4 * dt;							// trade possible right-side gap for left (was 0.2)
-						if(Math.abs(tskootch-skootch) > pDur/2) {				// no jerking around
-							if(debug) console.debug('new skootch, from: '+skootch+', to: '+tskootch);
-							skootch = tskootch;	
-						}
-					}
-				*/	
-					plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (measured to right-edge of plot)
+				if(!anyplots) {		// adjust on first plot param
+					// per-param tfetch-gapless logic:
+					tfetch = tright - pDur;									// tleft
+					if(gotTime[param] && tfetch<gotTime[param]) tfetch = gotTime[param];	// unless already have some (gapless)	
+					dfetch = 0.5*dt + tright - tfetch;						// very little extra (avoid audio overlap) was 0.1*
+//					plots[j].setDelay(playDelay+skootch);					// set smoothie plot delay (measured to right-edge of plot)
 				}
-				
-				if(top.rtflag==RT) tright = adjustPlayDelay(tright, lagTime[param], dt);		// adjust playDelay (ptime = now-playDelay)
+				if(firstchan) plots[j].setDelay(playDelay+skootch);	// first chan each plot: set smoothie plot delay (right-edge of plot)
+				firstchan=false;
+				anyplots=true;	
+
+				if(debug) console.debug('fetchData tfetch: '+tfetch+', dfetch: '+dfetch+', singleStep: '+singleStep);
 
 				if(dfetch > 0) {
-//					console.debug('fetchData tfetch: '+tfetch+', dfetch: '+dfetch+', singleStep: '+singleStep);
 					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
 					numPlot++;
 					setTime(tright);						// global time set to right-edge of stripchart	
@@ -942,6 +939,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	// figure expected max delay is avg + 3*std 
 	// if play drops behind newest by more than expected max delay, catch up to expected max delay
 	// While in this tolerance regime playback is smooth and new playback stats collected
+//	debug=true;
 	
 	var mlagTime = lagTime * 1000;				// sec -> msec
 	var playBuffer = newestTime - ptime;		// this is how much data buffer time on hand
@@ -950,38 +948,44 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	targetPlayBuffer = 1000;
 	if(bufferStats.length >= 5) {
 		targetPlayDelay = playStats.mean + 3 * playStats.deviation;
-		targetPlayBuffer = 200 + 3 * playStats.deviation;		// was 1000+, try tighter sync
+		targetPlayBuffer = 500 + 3 * playStats.deviation;		// was 1000+, try tighter sync
 	}
 
 	if(debug) 
 		console.warn('adjustPlayDelay, playBuffer: '+playBuffer+', targetPlayBuffer: '+targetPlayBuffer+', playDelay: '+playDelay+', targetPlayDelay: '+targetPlayDelay);
-
+	
 	// if this can work without using lagTime, then immune from clock-sync to host
-	if(playBuffer < 0) {				// play is ahead of newest, out of buffer				 
+	if(playBuffer < 100) {				// play is ahead of newest, out of buffer				 
 		var tplayDelay = -playBuffer + targetPlayBuffer;		// was +targetPlayDelay
 		if(playDelay < tplayDelay) 	playDelay = tplayDelay
 		else						playDelay += 1000;		// force at least some fallback increase
-			
-		if(debug) console.log('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay+', mlagTime: '+mlagTime);
+
+		if(debug) console.debug('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay+', mlagTime: '+mlagTime);
 	}
-	else if(playBuffer > targetPlayBuffer) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
-		var tback = playDelay - targetPlayDelay;
-		if(tback > 600000) 	playDelay = targetPlayDelay;		// more than 10 minutes, jump ahead...
-		else if(tback > 0) 	playDelay = (playDelay + targetPlayDelay) / 2;		// slew
-		else 				playDelay = mlagTime;
-//		else	playDelay -= 1000;
-		
-		if(debug) console.debug('CATCHUP, playBuffer: '+playBuffer+', playDelay: '+playDelay);
-	}
-	else {		// smooth sailing, collect stats
+	else {
+//		if(playDelay > targetPlayDelay) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
+		if(playBuffer > targetPlayBuffer) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
+
+			var tback = playDelay - targetPlayDelay;
+			if(tback > 600000) 	playDelay = targetPlayDelay;		// more than 10 minutes, jump ahead...
+			else 
+//				if(tback > 0) 	
+					playDelay = (playDelay + targetPlayDelay) / 2;		// slew +/- playDelay in direction of targetPlayDelay
+//			else 				playDelay = mlagTime;
+//			else	playDelay -= 1000;
+
+			if(debug) console.debug('CATCHUP, adjusted PlayDelay: '+ playDelay+', tback: '+tback);
+		}
+//		else {		// smooth sailing, collect stats
 		// store queue of playBuffer (push, shift), then take avg + 3*stdDev as catchup target.
 		bufferStats.push(mlagTime);			// is mlagTime reliable over network server?
 		if(bufferStats.length >= 32) bufferStats.shift();			// was 100 length
 		playStats = stdev(bufferStats);
-		
+
 		if(debug) console.debug('RUNNING, playBuffer: '+playBuffer+', playDelay: '+playDelay+', bufferStats.length: '+bufferStats.length+', playAvg: '+playStats.mean+', playStd: '+playStats.deviation);
 	}
-	
+
+//	debug=false;
 	return playTime();		// no update
 }
 
