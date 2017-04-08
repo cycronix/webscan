@@ -52,7 +52,8 @@ limitations under the License.
 // globals of control variables
 var myName="webscan";
 //var servletRoot="/CT";			// "CT" works only for CTserver	
-var servletRoot="/RBNB";			// "/RBNB" or "/CT" ("RBNB" works for both CTserver and WebTurbine)
+var servletRoot="/RBNB/";			// "/RBNB" or "/CT" ("RBNB" works for both CTserver and WebTurbine)
+									// trailing slash important for DT/CORS (?!)
 var serverAddr="";					// cross domain server...
 //var serverAddr="";				// "" for local access
 
@@ -948,7 +949,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	targetPlayBuffer = 1000;
 	if(bufferStats.length >= 5) {
 		targetPlayDelay = playStats.mean + 3 * playStats.deviation;
-		targetPlayBuffer = 500 + 3 * playStats.deviation;		// was 1000+, try tighter sync
+		targetPlayBuffer = 500 + 3 * playStats.deviation;		// was 1000+, try tighter sync (200 OK locally, 500 less glitches?)
 	}
 
 	if(debug) 
