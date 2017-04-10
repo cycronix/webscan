@@ -307,6 +307,9 @@ function configParams(src) {
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
 
+	if(serverAddr) 	document.getElementById("topbar").innerHTML = "WebScan : " + serverAddr;
+	else			document.getElementById("topbar").innerHTML = "WebScan";
+	
 	// RT mode (one-shot param)
 	var irtm  	 = getURLParam(src,'rt'); 	if(irtm!=null) rtmode=Number(irtm);
 //	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
