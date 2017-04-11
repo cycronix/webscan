@@ -792,7 +792,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		
 //		console.log("tfetch: "+tfetch+", newestTime: "+newestTime+", tright: "+tright+", top.rtflag: "+top.rtflag);
 		// second or subsequent time in, bail if nothing to plot:
-		if(!anyplots || ((tright>newestTime) && (top.rtflag!=RT)) ) {		// keep rolling if rtmode!=0
+		if(!anyplots || ((tright>newestTime) && (top.rtflag!=RT) || top.rtflag==PAUSE) ) {		// keep rolling if rtmode!=0
 			if(debug) console.log('EOF, stopping monitor.  tright: '+tright+', newestTime: '+newestTime);
 			clearInterval(intervalID);		// notta to do
 			intervalID = 0;
@@ -837,7 +837,6 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag+', intervalID2: '+intervalID2);	
 		rt_init = false;			// post - init		
 		
-		if(intervalID==0 || top.rtflag==PAUSE) return;		// fail-safe
 		intervalID = setTimeout(function() { doRT(dt); }, dt);
 	}
 	
