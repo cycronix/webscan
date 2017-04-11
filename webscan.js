@@ -438,7 +438,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(isAudio) {	
 		munge = "?dt=b";						// binary fetch
-		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
+//		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
 
 		if(endsWith(param,".wav")) munge += ("&d="+duration/1000.); else		// FOO try to get something to play in .wav format			
 		munge += ("&d="+duration/1000.);		// rt playback presumes duration increment steps...
@@ -465,7 +465,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 
 	if(refTime == "absolute" || refTime == "next" || refTime == "prev" || refTime == "after") munge+=("&t="+time/1000.);
-	if(refTime != "absolute")
+//	if(refTime != "absolute")
 		munge+="&refresh="+(new Date().getTime());		// no browser cache on ANY non-absolute time call
 
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
@@ -837,6 +837,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		if(debug) console.debug("anyplots: "+anyplots+", tfetch: "+tfetch+", newestTime: "+newestTime+", top.rtflag: "+top.rtflag+', intervalID2: '+intervalID2);	
 		rt_init = false;			// post - init		
 		
+		if(intervalID==0 || top.rtflag==PAUSE) return;		// fail-safe
 		intervalID = setTimeout(function() { doRT(dt); }, dt);
 	}
 	
@@ -860,7 +861,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var fastDelay=tDelay/10;
 	
 	function doRTfast() {
-		if(intervalID2==0) return;		// fail-safe
+		if(intervalID2==0 || top.rtflag==PAUSE) return;		// fail-safe
 		
 		if(numImage>0 && inProgress>=(numPlot+numImage)) {	// don't overwhelm!?
 			console.warn("Video not keeping up, skipping request! inProgress: "+inProgress);
@@ -891,7 +892,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 			}
 		}
 		
-		if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT))) {	// keep rolling if RT
+		if(!anyvideo || (ptime>=newestTime && (top.rtflag!=RT)) || top.rtflag==PAUSE) {	// keep rolling if RT
 			if(debug) console.log('no video, stopping monitor');
 			clearTimeout(intervalID2);		// notta to do
 			intervalID2 = 0;
@@ -1224,7 +1225,7 @@ function AjaxGet(myfunc, url, args) {
 			}
 		}
 	};
-	xmlhttp.open("GET",url,true);
+	xmlhttp.open("GET",url,true);	
 	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
 	if(gotTime[param] && duration==0.) 
 		xmlhttp.setRequestHeader("If-None-Match", param+":"+Math.floor(gotTime[param]) );
@@ -1232,7 +1233,8 @@ function AjaxGet(myfunc, url, args) {
 	fetchActive(true);
 	if(pidx!=null) plots[pidx].nfetch++;
 	inProgress++;
-
+	if(debug) console.debug('AjaxGet: '+url);
+	
 	xmlhttp.send();
 }
 
@@ -2061,7 +2063,7 @@ function mouseStep(dir) {
 }
 
 function mouseOut(e) {
-	if(debug||mouseDebug) console.log('mouseOut');
+//	if(debug||mouseDebug) console.log('mouseOut');
 //	e.preventDefault();		// for IE
 
 	if(thiswin) {
@@ -3393,13 +3395,15 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	var holdest = xmlhttp.getResponseHeader("oldest");		
 	if(holdest != null) {
 		var Told = 1000 * Number(holdest);
-		if(Told!=0 && (oldestTime == 0 || Told < oldestTime)) oldestTime = Told;
+		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) 
+				|| param == plots[0].params[0])) 								// if first plot, first param, master set oldest/newest time
+					oldestTime = Told;
 	}
 
 	var hnewest = xmlhttp.getResponseHeader("newest");		
 	if(hnewest != null) {
 		var Tnew = 1000 * Number(hnewest);
-		if(Tnew > newestTime) newestTime = Tnew;
+		if(Tnew > newestTime || param == plots[0].params[0]) newestTime = Tnew;
 	}
 	else AjaxGetParamTimeNewest(param);		// if not in header, fetch as separate call (e.g. for DT)
 
@@ -3410,9 +3414,10 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		var T = Math.floor(1000*parseFloat(tstamp));
 		if(hnewest==null && newReq) newestTime = T;
 		
-		if(holdest==null && oldReq) {
-			if(T!=0 && (T < oldestTime || oldestTime==0)) oldestTime = T;
-		}
+		if(holdest==null && oldReq) oldestTime = T;			// just set it
+//		{
+//			if(T!=0 && (T < oldestTime || oldestTime==0)) oldestTime = T;
+//		}
     	gotTime[param] = T;
     	lagTime[param] = hlag;
 	}
