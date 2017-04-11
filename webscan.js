@@ -438,7 +438,8 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(isAudio) {	
 		munge = "?dt=b";						// binary fetch
-		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
+//		if(refTime == "newest" || refTime == "after") 
+			munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
 
 		if(endsWith(param,".wav")) munge += ("&d="+duration/1000.); else		// FOO try to get something to play in .wav format			
 		munge += ("&d="+duration/1000.);		// rt playback presumes duration increment steps...
@@ -497,8 +498,7 @@ function setAudio(url, param, plotidx, duration, time, refTime) {
 //		inProgress--;
 //		return;
 //	}
-	if(debug) 
-		console.log("setAudio: "+url+", refTime: "+refTime);
+	if(debug) console.log("setAudio: "+url+", refTime: "+refTime);
 
 	var audioRequest = new XMLHttpRequest();
 	audioRequest.open('GET', url, true); 				//	open the request...
