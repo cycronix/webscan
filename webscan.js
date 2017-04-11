@@ -438,7 +438,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	
 	if(isAudio) {	
 		munge = "?dt=b";						// binary fetch
-//		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
+		if(refTime == "newest" || refTime == "after") munge+="&refresh="+(new Date().getTime());		// no browser cache on newest
 
 		if(endsWith(param,".wav")) munge += ("&d="+duration/1000.); else		// FOO try to get something to play in .wav format			
 		munge += ("&d="+duration/1000.);		// rt playback presumes duration increment steps...
@@ -808,10 +808,9 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				var param = plots[j].params[i];
 				if(endsWith(param,".jpg") || endsWith(param,".txt")) continue;
 
-				if(top.rtflag==RT && !anyplots) 				// adjust RT delay only for first chan, first plot as master
-					tright = adjustPlayDelay(tright, lagTime[param], dt);	// adjust playDelay (ptime = now-playDelay)
+//				if(top.rtflag==RT && !anyplots) 				// adjust RT delay only for first chan, first plot as master
+//					tright = adjustPlayDelay(tright, lagTime[param], dt);	// adjust playDelay (ptime = now-playDelay)
 				
-
 				// skootch adjust stripchart scrolling display with available data
 				if(!anyplots) {		// adjust on first plot param
 					// per-param tfetch-gapless logic:
@@ -824,7 +823,11 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				firstchan=false;
 				anyplots=true;	
 
-				if(debug) console.debug('fetchData tfetch: '+tfetch+', dfetch: '+dfetch+', singleStep: '+singleStep);
+				// adjust RT delay AFTER data fetch (based on prior results)
+				if(top.rtflag==RT && !anyplots) 				// adjust RT delay only for first chan, first plot as master
+					tright = adjustPlayDelay(tright, lagTime[param], dt);	// adjust playDelay (ptime = now-playDelay)
+			
+				if(debug) console.debug('fetchData tfetch: '+tfetch+', tright: '+tright+', dfetch: '+dfetch+', gotTime['+param+']: '+gotTime[param]);
 
 				if(dfetch > 0) {
 					fetchData(plots[j].params[i], j, dfetch, tfetch, "absolute");		// fetch latest data (async) 
@@ -841,11 +844,11 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	}
 	
 	mDur = getDuration();
-	singleStep = false;									// initiate scrolling mode
+	singleStep = false;					// initiate scrolling mode
 	var dt = tDelay;
 	if(dt > mDur) dt = mDur;			// refresh at least once per screen
 	if(dt <= 100) dt = 100; 
-	intervalID2 = 1;					// so intervalID doesn't pause video before can check		
+	intervalID = intervalID2 = 1;		// so intervalID doesn't pause video before can check		
 
 	for(var j=0; j<plots.length; j++) plots[j].dropdata();		// init?
 	
@@ -1769,7 +1772,8 @@ function AjaxGetParamTimeNewest(param) {
 					newestTime = ptime;
 					gotNewTime = newestTime;
 				}
-				if(debug) console.debug("AjaxGetParamTimeNewest, param: "+param+", response.length: "+xmlhttp.responseText.length+', newestTime: '+newestTime);
+				if(debug) 
+					console.debug("AjaxGetParamTimeNewest, param: "+param+", response.length: "+xmlhttp.responseText.length+', newestTime: '+newestTime);
 
 				// fetch updated time info from header (may get redundant newTime if available)
 //				updateHeaderInfo(xmlhttp, url, param);
@@ -3402,12 +3406,12 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	var hnewest = xmlhttp.getResponseHeader("newest");		
 	if(hnewest != null) {
 		var Tnew = 1000 * Number(hnewest);
-		if(Tnew > newestTime || param == plots[0].params[0]) newestTime = Tnew;
+		if(Tnew > newestTime  || param == plots[0].params[0]) newestTime = Tnew;
 	}
 	else AjaxGetParamTimeNewest(param);		// if not in header, fetch as separate call (e.g. for DT)
 
 	var hlag = Number(xmlhttp.getResponseHeader("lagtime"));
-	if(debug) console.debug('updateHeader, param: '+param+', tstamp: '+tstamp+", holdest: "+holdest+", hnewest: "+hnewest+", hlag: "+hlag+", dupe: "+(xmlhttp.status==304));
+	if(debug) console.debug('updateHeader, url: '+url+', param: '+param+', tstamp: '+tstamp+", holdest: "+holdest+", hnewest: "+hnewest+", hlag: "+hlag+", dupe: "+(xmlhttp.status==304)+', newestTime: '+newestTime);
 
 	if(tstamp != null) {
 		var T = Math.floor(1000*parseFloat(tstamp));
