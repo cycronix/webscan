@@ -956,7 +956,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	targetPlayBuffer = 1000;
 	if(bufferStats.length >= 5) {
 		targetPlayDelay = playStats.mean + 3 * playStats.deviation;
-		targetPlayBuffer = tDelay + 3 * playStats.deviation;		// was 1000+, try tighter sync (200 OK locally, 500 less glitches?)
+		targetPlayBuffer = tDelay/2 + 3 * playStats.deviation;		// was 1000+, try tighter sync (200 OK locally, 500 less glitches?)
 	}
 
 	if(debug) 
