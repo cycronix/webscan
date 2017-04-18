@@ -820,13 +820,13 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 //					plots[j].setDelay(playDelay+skootch);					// set smoothie plot delay (measured to right-edge of plot)
 				}
 				if(firstchan) plots[j].setDelay(playDelay+skootch);	// first chan each plot: set smoothie plot delay (right-edge of plot)
-				firstchan=false;
-				anyplots=true;	
 
 				// adjust RT delay AFTER data fetch (based on prior results)
 				if(top.rtflag==RT && !anyplots) 				// adjust RT delay only for first chan, first plot as master
 					tright = adjustPlayDelay(tright, lagTime[param], dt);	// adjust playDelay (ptime = now-playDelay)
 			
+				firstchan=false;
+				anyplots=true;	
 				if(debug) console.debug('fetchData tfetch: '+tfetch+', tright: '+tright+', dfetch: '+dfetch+', gotTime['+param+']: '+gotTime[param]);
 
 				if(dfetch > 0) {
@@ -935,6 +935,8 @@ function playTime() {		// time at which to fetch (msec)
 //----------------------------------------------------------------------------------------
 // adjustPlayDelay:  try to figure out appropriate delay for "smooth" data display given variable data arrival time
 function adjustPlayDelay(ptime, lagTime, dt) {
+//	debug=true;
+	
 	if(!lagTime) {				// no lagTime from header, e.g. DataTurbine
 		if(debug) console.warn('adjustPlayTime, no lagTime!');
 		playDelay = 0;
@@ -946,7 +948,6 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	// figure expected max delay is avg + 3*std 
 	// if play drops behind newest by more than expected max delay, catch up to expected max delay
 	// While in this tolerance regime playback is smooth and new playback stats collected
-//	debug=true;
 	
 	var mlagTime = lagTime * 1000;				// sec -> msec
 	var playBuffer = newestTime - ptime;		// this is how much data buffer time on hand
@@ -955,7 +956,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	targetPlayBuffer = 1000;
 	if(bufferStats.length >= 5) {
 		targetPlayDelay = playStats.mean + 3 * playStats.deviation;
-		targetPlayBuffer = 500 + 3 * playStats.deviation;		// was 1000+, try tighter sync (200 OK locally, 500 less glitches?)
+		targetPlayBuffer = tDelay + 3 * playStats.deviation;		// was 1000+, try tighter sync (200 OK locally, 500 less glitches?)
 	}
 
 	if(debug) 
@@ -965,7 +966,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	if(playBuffer < 100) {				// play is ahead of newest, out of buffer				 
 		var tplayDelay = -playBuffer + targetPlayBuffer;		// was +targetPlayDelay
 		if(playDelay < tplayDelay) 	playDelay = tplayDelay
-		else						playDelay += 1000;		// force at least some fallback increase
+		else						playDelay += 20;			// force at least some fallback increase
 
 		if(debug) console.debug('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay+', mlagTime: '+mlagTime);
 	}
@@ -974,7 +975,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 		if(playBuffer > targetPlayBuffer) {	// got spec playBuffer queued up.  (need to sweep multiple blocks to get good avg/std?)
 
 			var tback = playDelay - targetPlayDelay;
-			if(tback > 600000) 	playDelay = targetPlayDelay;		// more than 10 minutes, jump ahead...
+			if(tback > 60000) 	playDelay = targetPlayDelay;		// more than 1 minute, jump ahead... (was 10 minutes)
 			else 
 //				if(tback > 0) 	
 					playDelay = (playDelay + targetPlayDelay) / 2;		// slew +/- playDelay in direction of targetPlayDelay
