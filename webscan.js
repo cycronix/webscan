@@ -58,6 +58,8 @@ var serverAddr="";					// cross domain server...
 //var serverAddr="";				// "" for local access
 
 var tDelay=1000;					// initial data fetch interval (msec)
+var fastDelay = tDelay/10;			// fast fetch interval for media (sec)
+
 var doRate=true;					// set true to support UI rate selection
 var maxLayer=4;						// max number of image layers
 
@@ -860,7 +862,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var prevmediaTime = 0;
 	lastmediaTime = 0;			// reset
 	var slowdownCount = 0;
-	var fastDelay=tDelay/10;
+	fastDelay=tDelay/10;
 	
 	function doRTfast() {
 		if(intervalID2==0 || top.rtflag==PAUSE) return;		// fail-safe
@@ -908,10 +910,10 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 			} else {
 				slowdownCount++;				// ease up if not getting data
 				if(debug) console.debug('slowdownCount: '+slowdownCount+', lastmediaTime: '+lastmediaTime+', prevmediaTime: '+prevmediaTime);
-				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,tDelay/10);	// <10s, keep going fast
-				else if(slowdownCount < 150)	intervalID2 = setTimeout(doRTfast,tDelay);		// 10s to 1min
-				else if(slowdownCount < 740)	intervalID2 = setTimeout(doRTfast,tDelay*2);	// 1min to ~10min
-				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,tDelay*5);	// 10 min to ~2 hours
+				if(slowdownCount < 100) 		intervalID2 = setTimeout(doRTfast,fastDelay=tDelay/10);	// <10s, keep going fast
+				else if(slowdownCount < 150)	intervalID2 = setTimeout(doRTfast,fastDelay=tDelay);	// 10s to 1min
+				else if(slowdownCount < 740)	intervalID2 = setTimeout(doRTfast,fastDelay=tDelay*2);	// 1min to ~10min
+				else if(slowdownCount < 4000)	intervalID2 = setTimeout(doRTfast,fastDelay=tDelay*5);	// 10 min to ~2 hours
 				else {
 					intervalID2 = 0;
 					if(intervalID==0) goPause();	// stop if long-time no data
@@ -966,7 +968,7 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 	if(playBuffer < 100) {				// play is ahead of newest, out of buffer				 
 		var tplayDelay = -playBuffer + targetPlayBuffer;		// was +targetPlayDelay
 		if(playDelay < tplayDelay) 	playDelay = tplayDelay
-		else						playDelay += 20;			// force at least some fallback increase
+		else						playDelay += fastDelay;			// force at least some fallback increase (was 20)
 
 		if(debug) console.debug('FALLBACK, playBuffer: '+playBuffer+', playDelay: '+playDelay+', mlagTime: '+mlagTime);
 	}
@@ -976,13 +978,13 @@ function adjustPlayDelay(ptime, lagTime, dt) {
 
 			var tback = playDelay - targetPlayDelay;
 			if(tback > 60000) 	playDelay = targetPlayDelay;		// more than 1 minute, jump ahead... (was 10 minutes)
-			else 
-//				if(tback > 0) 	
-					playDelay = (playDelay + targetPlayDelay) / 2;		// slew +/- playDelay in direction of targetPlayDelay
-//			else 				playDelay = mlagTime;
-//			else	playDelay -= 1000;
-
-			if(debug) console.debug('CATCHUP, adjusted PlayDelay: '+ playDelay+', tback: '+tback);
+			else {
+				var tadjust = (targetPlayDelay - playDelay) / 2;
+				if(tadjust > fastDelay) tadjust = fastDelay;		// no backwards-going time
+				playDelay += tadjust;
+//				if(tback > 0) playDelay = (playDelay + targetPlayDelay) / 2;		// slew +/- playDelay in direction of targetPlayDelay
+			}
+			if(debug) console.debug('ADJUST, PlayDelay: '+ playDelay+', tback: '+tback);
 		}
 //		else {		// smooth sailing, collect stats
 		// store queue of playBuffer (push, shift), then take avg + 3*stdDev as catchup target.
