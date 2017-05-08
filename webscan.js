@@ -869,9 +869,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 			}	// end params loop
 		}	// end plots loop
 
-//		setTime(ptime);					// requested data time
-//		if(lastgotTime > prevgotTime) 
-			setTime(lastgotTime);					// requested data time
+		setTime(ptime);					// requested data time
+//		if(lastgotTime > prevgotTime) setTime(lastgotTime);					// requested data time
 
 		if(!anyplots || ((ptime-pDur)>=newestTime && (top.rtflag!=RT)) || top.rtflag==PAUSE) {	// keep rolling if RT
 			if(debug) console.log('no active parameter, stopping monitor, ptime: '+ptime+', newestTime: '+newestTime);
