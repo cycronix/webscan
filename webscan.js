@@ -2151,6 +2151,11 @@ function buildChanLists() {
 		var elo = document.createElement("option");
 		elo.value = elo.textContent = '+';
 		add.appendChild(elo);
+		
+		var elo = document.createElement("option");
+		elo.value = elo.textContent = '[Refresh List]';
+		add.appendChild(elo);
+		
 		var mysrc=''; 	var elg='';
 		var listlen = channels.length;
 		for(var i=0; i<listlen; ) {	
@@ -2200,6 +2205,7 @@ function addChanBox(idx, el) {
 
 function pauseRebuild() {
 	noRebuild = true;
+//	fetchChanList();				// fetch new channel list on every channel-pulldown?
 }
 
 //----------------------------------------------------------------------------------------
@@ -2231,6 +2237,12 @@ function addChanSelect() {
 	var chan = this.options[this.selectedIndex].value;
 	if(chan == '+') return;	// firewall: not a real selection
 
+	if(chan == '[Refresh List]') {
+		fetchChanList();		// update list
+		this.fireEvent("change");
+		return;
+	}
+	
 	if(chan=='' || endsWith(chan,'/')) {
 		this.selectedIndex = 0;
 		return;			// not a channel
@@ -3200,7 +3212,7 @@ function vidscan(param) {
     	
     	xmlhttp.onreadystatechange=function() {
         	fetchActive(false);
-
+        	
     		if (xmlhttp.readyState==4) {    			
 				if(debug) 
 					console.log("AjaxGetImage, got: "+url+", inprogress: "+instance.videoInProgress+", status: "+xmlhttp.status);
@@ -3221,13 +3233,15 @@ function vidscan(param) {
 
 					if(duration>0) {
 						var imageArray = new Array();			// new local temporary array of images this plot
-						for(var i=0; i<(length-1); i++) {
+//						var t1=new Date().getTime();
+						for(var i=0, end=length-1; i<end; i++) {
 							jdat = view.getUint16(i);
 							if(jdat == 0xffd8) {
 //								console.log('GOT image at: '+i);
 								imageArray.push(wurl.createObjectURL(new Blob([this.response.slice(i)], {type: "image/jpeg"})));
 							}
 						}
+//						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
 						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.5)
 						if(debug) 
