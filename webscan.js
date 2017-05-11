@@ -2239,7 +2239,6 @@ function addChanSelect() {
 
 	if(chan == '[Refresh List]') {
 		fetchChanList();		// update list
-		this.fireEvent("change");
 		return;
 	}
 	
