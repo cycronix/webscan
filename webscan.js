@@ -808,10 +808,10 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 
 				// --------MEDIA: image or text media
 				
-				if(endsWith(param,".jpg") || endsWith(param,".txt")) {			// can have mixed .jpg & .wav params!
-					if(endsWith(param,'.txt') && top.rtflag==RT)	
-						fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
-					else {						
+				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!
+//					if(endsWith(param,'.txt') && top.rtflag==RT)	
+//						fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
+//					else {						
 						if(top.rtflag==RT) {
 							if(headerInfo[param].gotTime) 	tfetch = headerInfo[param].gotTime;
 							else							tfetch = ptime;
@@ -823,48 +823,53 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							}
 
 							if(debug) 
-								console.debug('RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
+								console.debug('media RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
 
 							fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
 						}
 						else {
 							fetchData(param, j, 0, ptime, "absolute");
 						}
-					}
+//					}
 					headerInfo[param].gotStatus = PENDING;
 				}
 
 				// --------STRIPCHART: time-series data at tDelay
 				
-				else if(dtRT>=tDelay) {				
-					t1 = t2;
-					if(runningCount>0) plots[j].start();							// delay scrolling until SECOND time through for smooth startup (no-op if already started)
-					if(firstStripchartChan) plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (right-edge of plot) on first plot param							
+				else if(dtRT>=tDelay) {	
+//					console.log('dtRT: '+dtRT+', tDelay: '+tDelay);
+					if(endsWith(param,'.txt') && top.rtflag==RT) {
+						fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
+					} else {	
+						if(runningCount>0) plots[j].start();							// delay scrolling until SECOND time through for smooth startup (no-op if already started)
+						if(firstStripchartChan) plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (right-edge of plot) on first plot param							
 
-					firstStripchartChan = false;
-					if(headerInfo[param].gotTime)	tfetch = headerInfo[param].gotTime;
-					else 							tfetch = ptime-pDur;							// init or DT
-					
-					if(top.rtflag==RT) {
+						firstStripchartChan = false;
+						if(headerInfo[param].gotTime)	tfetch = headerInfo[param].gotTime;
+						else 							tfetch = ptime-pDur;							// init or DT
+
+						if(top.rtflag==RT) {
 							if(tfetch < (ptime-2*pDur)) tfetch = ptime-2*pDur;		// jump ahead if unreasonable gap
 							dfetch = 2*pDur;										// get past expected most-recent data
-					} 
-					else 	dfetch = tDelay + ptime - tfetch;						// little extra (gap?)
-					
-					if(dfetch > 10*pDur) dfetch = 10*pDur;							// avoid monster fetch
-					if(dfetch > 0) {
-						fetchData(param, j, dfetch, tfetch, "absolute");			// fetch latest data (async) 
-						headerInfo[param].gotStatus = PENDING;
+						} 
+						else 	dfetch = tDelay + ptime - tfetch;						// little extra (gap?)
+
+						if(dfetch > 10*pDur) dfetch = 10*pDur;							// avoid monster fetch
+						if(dfetch > 0) {
+							fetchData(param, j, dfetch, tfetch, "absolute");			// fetch latest data (async) 
+							headerInfo[param].gotStatus = PENDING;
+						}
+
+						if(debug) 
+							console.debug('RT param: '+param
+									+', tfetch: '	+((tfetch-oldestTime)/1000.)				// normalize times for readability
+									+', ptime: '	+((ptime-oldestTime)/1000.)
+									+', dfetch: '	+(dfetch/1000.)
+									+', gotTime: '	+((headerInfo[param].gotTime-oldestTime)/1000.)
+									+', gotStatus: ' 	+headerInfo[param].gotStatus
+							);
 					}
-					
-					if(debug) 
-						console.debug('RT param: '+param
-							+', tfetch: '	+((tfetch-oldestTime)/1000.)				// normalize times for readability
-							+', ptime: '	+((ptime-oldestTime)/1000.)
-							+', dfetch: '	+(dfetch/1000.)
-							+', gotTime: '	+((headerInfo[param].gotTime-oldestTime)/1000.)
-							+', gotStatus: ' 	+headerInfo[param].gotStatus
-						);
+					t1 = t2;
 				}
 			}	// end params loop
 		}	// end plots loop
@@ -1511,9 +1516,9 @@ function fetchActive(status) {
 //	console.debug('fetchActive: '+status);
 	if(status) 	{
 		document.getElementById("timestamp").style.color = "red";
-		document.body.style.cursor = 'wait';
+//		document.body.style.cursor = 'wait';
 	} else {
-		document.body.style.cursor = 'default';
+//		document.body.style.cursor = 'default';
 		document.getElementById("timestamp").style.color = "white";
 	}
 }
