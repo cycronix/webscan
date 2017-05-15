@@ -806,41 +806,43 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 
 				if(headerInfo[param].gotStatus==PENDING) continue;		// this won't queue anything (robust but images not as fast?)
 
-				// --------MEDIA: image or text media
-				
+				// --------MEDIA: image
+
 				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!
 //					if(endsWith(param,'.txt') && top.rtflag==RT)	
-//						fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
+//					fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
 //					else {						
-						if(top.rtflag==RT) {
-							if(headerInfo[param].gotTime) 	tfetch = headerInfo[param].gotTime;
-							else							tfetch = ptime;
-														
-							if(tfetch < (newestTime-pDur)){
-//								console.debug('JUMP AHEAD! dt: '+(newestTime-tfetch));
-								if(tfetch > (newestTime - 5*pDur)) 	tfetch = (tfetch + newestTime)/2;		// slew
-								else 								tfetch = newestTime;					// jump ahead if unreasonable gap
-							}
+					if(top.rtflag==RT) {
+						if(headerInfo[param].gotTime) 	tfetch = headerInfo[param].gotTime;
+						else							tfetch = ptime;
 
-							if(debug) 
-								console.debug('media RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
+						if(tfetch < (newestTime-pDur)){
+//							console.debug('JUMP AHEAD! dt: '+(newestTime-tfetch));
+							if(tfetch > (newestTime - 5*pDur)) 	tfetch = (tfetch + newestTime)/2;		// slew
+							else 								tfetch = newestTime;					// jump ahead if unreasonable gap
+						}
 
-							fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
-						}
-						else {
-							fetchData(param, j, 0, ptime, "absolute");
-						}
+						if(debug) 
+							console.debug('media RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
+
+						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
+					}
+					else {
+						fetchData(param, j, 0, ptime, "absolute");
+					}
 //					}
 					headerInfo[param].gotStatus = PENDING;
 				}
 
 				// --------STRIPCHART: time-series data at tDelay
-				
+
 				else if(dtRT>=tDelay) {	
 //					console.log('dtRT: '+dtRT+', tDelay: '+tDelay);
-					if(endsWith(param,'.txt') && top.rtflag==RT) {
-						fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
-					} else {	
+					if(endsWith(param,'.txt')) {											// text: always zero duration
+						if(top.rtflag==RT) 	fetchData(param, j, 0, 0, "newest");			// get newest if RT (galumps!)
+						else				fetchData(param, j, 0, ptime, "absolute");
+					} 
+					else {	
 						if(runningCount>0) plots[j].start();							// delay scrolling until SECOND time through for smooth startup (no-op if already started)
 						if(firstStripchartChan) plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (right-edge of plot) on first plot param							
 
