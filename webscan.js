@@ -731,6 +731,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	lastgotTime = 0;
 	if(time != 0 && top.rtflag != RT) 
 			playDelay = (new Date().getTime() - time);		// playback mode
+//	else playDelay = 0;
 	else if(newestTime)	playDelay = (new Date().getTime() - newestTime);
 	
 	if(!playDelay) playDelay = 0;			// firewall (DT?)
@@ -748,7 +749,6 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var pDur = getDuration();		// msec
 	var numPlot = 0;				// keep track of number in-flight
 	var numImage = 0;				// count images for inProgress check
-	mDur = getDuration();
 	singleStep = false;				// initiate scrolling mode
 	loopDelay=tDelay/10;				// media-loop is 10x
 //	loopDelay=tDelay;				// media-loop is 1x
@@ -923,28 +923,33 @@ function adjustPlayDelay(param) {
 	var newTime = headerInfo[param].newest;
 	if(newTime > 0) 	lagTime = now - newTime;			// this may include clock-misalignment
 	else				lagTime = 0;
-		
+
 //	if(lagTime > pDur) return playTime();			// toss delays greater than screen duration
-	
+
 	// collect stats
 	bufferStats.push(lagTime);			// is mlagTime reliable over network server?
-	if(bufferStats.length >= 8) bufferStats.shift();			// was 32 length
+	if(bufferStats.length > 32) bufferStats.shift();			// was 32 length
 	playStats = stdev(bufferStats);
 //	playDelay = playStats.mean;			// done
-	
+
+	var trialPlayDelay=playDelay; 
+	var pDur = getDuration();
 	if(playStats.mean < playDelay) {		// catch up (less delay)
-		playDelay = playStats.mean  + 1*playStats.deviation;		
+		if(pDur < 60000) trialPlayDelay = playStats.mean  + 1*playStats.deviation;	
+		else			 trialPlayDelay = playStats.mean;			// slow updates, just keep up
 	}
 	else {									// fall back (more delay).  Be careful about backwards-going time
 		if((playStats.mean - playDelay) > loopDelay) {			// no adjust for small changes (avoid jitter)
-			playDelay += loopDelay/2;							// limit backwards-going time
+			trialPlayDelay = playDelay + loopDelay;							// limit backwards-going time
 		}
 	}
 
+	if(Math.abs(trialPlayDelay - playDelay) > pDur/4) playDelay = trialPlayDelay;
+	
 	if(debug) 
 		console.debug('PlayDelay: '+ playDelay+
-			', stats.length: '+bufferStats.length+', playAvg: '+playStats.mean+', playStd: '+playStats.deviation+
-			', newestTime: '+newestTime+', lastgotTime: '+lastgotTime+', lagTime: '+lagTime);
+				', stats.length: '+bufferStats.length+', playAvg: '+playStats.mean+', playStd: '+playStats.deviation+
+				', newestTime: '+newestTime+', lastgotTime: '+lastgotTime+', lagTime: '+lagTime);
 
 	return playTime();		// no update
 }
@@ -1590,11 +1595,10 @@ function setTimeNoSlider(time) {
 	if(top.rtflag==RT) {
 		now = new Date().getTime();						// msec
 
-		var dt = (now - time).toFixed(1);					// sec.X (est)
-//		var dt = ((now - time)/1000).toFixed(1);				// sec.X
+		var dt = ((now - time)/1000).toFixed(1);				// sec.X
 //		var dt = Math.round((now - lastgotTime)/100.)/10;		// sec.X
 //		var dt = Math.round((time - lastgotTime)/100.)/10;		// sec.X
-		var dt = (playDelay/1000).toFixed(1);
+//		var dt = (playDelay/1000).toFixed(1);
 		
 		if(dt>=0) rtString = "   [RT-" + dt + "s]";
 		else	  rtString = "   [RT+" + (-dt) + "s]";
@@ -1771,6 +1775,8 @@ function AjaxGetParamTimeOldest(param) {
 //buildCharts:  build canvas and smoothie charts
 
 function buildCharts() {
+//	buildFlexCharts(); return;
+	
 	refreshInProgress = true;
 	if(debug) console.log('buildCharts: '+plots.length);
 	gotTime = [];					// reset newTime array
@@ -1902,6 +1908,143 @@ function buildCharts() {
 //	setPause(false,0);		// auto pause (less perplexing) 
 	refreshInProgress = false;
 
+	setDivSize();
+}	
+
+//----------------------------------------------------------------------------------------
+// buildFlexCharts:  build canvas and smoothie charts - using flexbox
+// Work in progress, not ready for prime time
+
+function buildFlexCharts() {
+	refreshInProgress = true;
+	if(debug) console.log('buildFlexCharts: '+plots.length);
+	gotTime = [];					// reset newTime array
+
+	var emsg = 'Your browser does not support HTML5 canvas';
+
+	// clean up
+	var graphs=document.getElementById("dgraphs");
+	graphs.className="flex-container";
+	while(graphs.firstChild) graphs.removeChild(graphs.firstChild);	// clear old		
+	var Wg = graphs.clientWidth;		// fixed value all plots
+
+	// create each plot
+	var nparam = 0;		// count active params
+	var ncol = numCol;
+	if(ncol == 0) {	 // auto
+		if(window.innerWidth > window.innerHeight) {		// wider than tall
+			switch(plots.length) {	
+			case 2:		case 4:		case 6:		case 8:		case 10:	case 14:	ncol = 2;	break;
+			case 9:		case 12:	case 15:	case 18:					ncol = 3;	break;
+			case 16:	case 20:	ncol = 4;	break;
+			default:											ncol = 1;	break;
+			}
+		}
+		else {
+			switch(plots.length) {				// taller than wide
+			case 4:		case 6:		case 8:		case 10:	case 14:	ncol = 2;	break;
+			case 9:		case 12:	case 15:	case 18:			ncol = 3;	break;
+			case 16:	case 20:							ncol = 4;	break;
+			default:									ncol = 1;	break;
+			}
+		}
+	}
+	if(ncol > plots.length) ncol = plots.length;
+	var nrow = Math.ceil(plots.length / ncol);	
+
+	var iplot = 0;
+	for(var iplot=0; iplot<plots.length; iplot++) {
+
+		var flexbox = document.createElement('li');
+		flexbox.className = "flex-item";
+
+//		flexbox.width = (graphs.clientWidth/ncol-15); 		// width used in setting chart duration
+//		flexbox.height = (window.innerHeight/nrow - 20)/2;
+		console.debug('iplot: '+iplot+', ncol: '+ncol+', nrow: '+nrow+', w: '+flexbox.width+', h: '+flexbox.height);
+		graphs.appendChild(flexbox);
+
+		// plotDiv child of graphDiv	
+		var plotTable = document.createElement('table');
+		flexbox.appendChild(plotTable);
+
+		var prow = plotTable.insertRow(0);
+		var pcell0 = prow.insertCell(0); 
+
+		// parent div to hold chanbox, chanlist, clearbox
+		var pdiv = document.createElement('div');
+		pdiv.id = "phead";
+		pcell0.appendChild(pdiv);
+
+		// + addchan button
+		addChanBox(iplot, pdiv);					
+
+		// child div to hold chanlist
+		var cdiv = document.createElement('div');
+		cdiv.style.float="left";
+		cdiv.style.width="1px";		// nominal, will overflow
+		pdiv.appendChild(cdiv);
+
+		//  create label for each param
+		for(var j=0; j<plots[iplot].params.length; j++) {
+			nparam++;						
+			// create label element above plot
+			var node = document.createElement('label');
+			node.style.whiteSpace="nowrap";
+			var param = plots[iplot].params[j];
+			if(plots[iplot].params.length > 1) param = param.split("/").pop(); 	// truncate to just param name if multiple
+			node.innerHTML = param;
+			node.id = 'label'+j;
+			node.style.color = plots[iplot].color(j);
+			node.style.padding = '0 4px';
+			cdiv.appendChild(node);	
+			setConfig('p'+iplot+''+j,plots[iplot].params[j]);
+		}
+
+		// x clearPlot button
+		if(plots[iplot].params.length > 0) {		// only if any curves to clear
+			addClearBox('clear'+iplot, clearPlotSelect, 'x', pdiv);
+		}
+
+		// create a canvas for each plot box
+		prow = plotTable.insertRow(1);
+		var pcell1 = prow.insertCell(0); 
+		pcell1.style.position="relative";	// position parent of canvas so canvas-absolute is relative to this... ??
+
+		var canvas = new Array();			// MJM 10/12/16
+		for(i=0; i<maxLayer; i++) {
+			canvas.push(document.createElement('canvas'));
+			canvas[i].innerHTML = emsg; 
+			canvas[i].id = 'plot'+iplot; 
+			canvas[i].setAttribute("class", "canvas");
+			canvas[i].setAttribute("display", "block");		// ?
+
+			canvas[i].align="center";
+			if(i>0) {
+				canvas[i].style.position="absolute";
+				canvas[i].style.top=0; 		// was pdiv.height (undefined)
+				canvas[i].style.left=0;
+			}
+			canvas[i].style.zIndex = -1;				// no mouse click on layers
+			canvas[i].style.zIndex = maxLayer - i;		// order alpha on top
+			pcell1.appendChild(canvas[i]);
+			
+			var r = canvas[i].parentElement.getBoundingClientRect();
+			canvas[i].width = r.width;
+			canvas[i].height = r.height;
+		}
+		addListeners(pcell1);							// add listener to cell (vs canvas layer)
+		// associate smoothie chart with canvas
+		plots[iplot].addCanvas(canvas);
+	}
+
+	buildChanLists();		// re-initialize (overkill?)
+	updateSelect();			// update-interval selection menu
+
+	top.rtflag=PAUSE;		// auto-pause (less squirmy?)
+	durationSelect(document.getElementById("myDuration"));	    // plot duration selection menu		(NEED?)
+
+	getLimits(1,1);			// re-update limits?
+	refreshInProgress = false;
 	setDivSize();
 }	
 
