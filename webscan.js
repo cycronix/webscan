@@ -1562,7 +1562,9 @@ function rebuildPage2(maxWait) {
 	}
 	
 	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
-	if(getTime()>newestTime) setTime(oldestTime);
+//	if(getTime()>newestTime) setTime(oldestTime);
+	if(getTime()>newestTime) setTime(newestTime);
+
 	
 	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) {
 //		setTime(oldestTime+getDuration());
@@ -1596,8 +1598,7 @@ function setTimeNoSlider(time) {
 		now = new Date().getTime();						// msec
 
 		var dt = ((now - time)/1000).toFixed(1);				// sec.X
-//		var dt = Math.round((now - lastgotTime)/100.)/10;		// sec.X
-//		var dt = Math.round((time - lastgotTime)/100.)/10;		// sec.X
+//		var dt = ((now - lastgotTime)/1000).toFixed(1);			// sec.X
 //		var dt = (playDelay/1000).toFixed(1);
 		
 		if(dt>=0) rtString = "   [RT-" + dt + "s]";
@@ -1633,8 +1634,8 @@ function setTimeSlider(time) {
 	if(mDur > (newestTime-oldestTime)) {
 		percent = 100.;
 	} else {
-		if(time==oldestTime) 		percent = 0;
-		else if(time==newestTime) 	percent = 100;
+		if(time<=oldestTime) 		percent = 0;
+		else if(time>=newestTime) 	percent = 100;
 		else 						percent = 100. * (time - oldestTime - mDur) / (newestTime - oldestTime - mDur);
 	}
 	
@@ -2607,8 +2608,9 @@ function plot() {
 		},
 		labels:{ 
 			fillStyle:'#000000', 
-			fontSize:'12', 
-			precision:1 
+			fontSize:'11', 
+			precision:1,
+			fontFamily:'Monaco'
 		},
 //		timestampFormatter:SmoothieChart.timeFormatter,
 		timestampFormatter:myTimeFormatter,
@@ -3475,7 +3477,8 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	var holdest = xmlhttp.getResponseHeader("oldest");		
 	if(holdest != null) {
 		var Told = 1000 * Number(holdest);
-		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
+//		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
+		if(Told < oldestTime)
 			oldestTime = Told;
 	}
 
@@ -3503,8 +3506,10 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	var T = 1000*parseFloat(tstamp);
 //	if(hnewest==null && newReq) newestTime = T;
 //	if(holdest==null && oldReq) oldestTime = T;			// just set it
-	if(hnewest==null && ref=="newest") newestTime = T;
-	if(holdest==null && ref=="oldest") oldestTime = T;			// just set it
+
+	// following are per-chan, don't reset globals
+//	if(hnewest==null && ref=="newest") newestTime = T;
+//	if(holdest==null && ref=="oldest") oldestTime = T;			// just set it
 	
 	headerInfo[param].newEntry = true;
 	headerInfo[param].lagTime = hlag;
