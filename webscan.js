@@ -729,13 +729,18 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	stopRT();
 	inProgress = 0;		// reset
 	lastgotTime = 0;
+	if(top.rtflag == RT  && !newestTime) updateNewest();
+	
 	if(time != 0 && top.rtflag != RT) 
 			playDelay = (new Date().getTime() - time);		// playback mode
 //	else playDelay = 0;
-	else if(newestTime)	playDelay = (new Date().getTime() - newestTime);
+	else if(newestTime)	{
+		playDelay = (new Date().getTime() - newestTime);
+	}
 	
 	if(!playDelay) playDelay = 0;			// firewall (DT?)
-	if(debug) console.debug('rtCollection, time: '+time+', playDelay: '+playDelay+', oldestTime: '+oldestTime+', getDuration: '+getDuration());
+//	if(debug) 
+		console.debug('rtCollection, time: '+time+', playDelay: '+playDelay+', newestTime: '+newestTime+', getDuration: '+getDuration());
 		
 	// stripchart fetch data on interval
 	headerInfo = [];		// reset
@@ -752,6 +757,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	singleStep = false;				// initiate scrolling mode
 	loopDelay=tDelay/10;				// media-loop is 10x
 //	loopDelay=tDelay;				// media-loop is 1x
+	var totDelay = 0;
 
 	intervalID = 1;		// so intervalID doesn't pause video before can check		
 	for(var j=0; j<plots.length; j++) plots[j].dropdata();		// init?
@@ -885,19 +891,35 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		}
 		else {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
-			if(lastgotTime > prevgotTime) {
-				slowdownCount=0;	
+			var newWay=false;			// meh, jerking loopDelay causes jerky displays?
+			if(newWay) {
+				if(lastgotTime > prevgotTime)	{	// success
+					loopDelay = totDelay / 2;
+					totDelay = 0;
+//					loopDelay = loopDelay/2;		// speed up
+					if(loopDelay < tDelay/10) loopDelay = tDelay / 10;
+				} else {
+					totDelay += loopDelay;
+					loopDelay = 1.1*loopDelay;		// slow down
+					if(loopDelay > 10*tDelay) loopDelay = 10*tDelay;
+				}
 				intervalID = setTimeout(doRT,loopDelay);
-			} else {
-				slowdownCount++;				// ease up if not getting data
-				if(slowdownCount < 100) 		intervalID = setTimeout(doRT,loopDelay);	// <10s, keep going fast
-				else if(slowdownCount < 150)	intervalID = setTimeout(doRT,loopDelay*10);		// 10s to 1min
-				else if(slowdownCount < 740)	intervalID = setTimeout(doRT,loopDelay*20);	// 1min to ~10min
-				else if(slowdownCount < 4000)	intervalID = setTimeout(doRT,loopDelay*50);	// 10 min to ~2 hours
-				else 							goPause();	// stop if long-time no data
+			}
+			else {
+				if(lastgotTime > prevgotTime) {
+					slowdownCount=0;
+					intervalID = setTimeout(doRT,loopDelay);
+				} else {
+					slowdownCount++;				// ease up if not getting data
+					if(slowdownCount < 100) 		intervalID = setTimeout(doRT,loopDelay);	// <10s, keep going fast
+					else if(slowdownCount < 150)	intervalID = setTimeout(doRT,loopDelay*10);		// 10s to 1min
+					else if(slowdownCount < 740)	intervalID = setTimeout(doRT,loopDelay*20);	// 1min to ~10min
+					else if(slowdownCount < 4000)	intervalID = setTimeout(doRT,loopDelay*50);	// 10 min to ~2 hours
+					else 							goPause();	// stop if long-time no data
+				}
 			}
 			if(debug) 
-				console.debug('slowdownCount: '+slowdownCount+', lastgotTime: '+lastgotTime+', prevgotTime: '+prevgotTime+', loopDelay: '+loopDelay);
+				console.debug('slowdownCount: '+slowdownCount+', lastgotTime: '+lastgotTime+', prevgotTime: '+prevgotTime+', loopDelay: '+loopDelay+", totDelay: "+totDelay);
 			prevgotTime = lastgotTime;
 		}
 		runningCount++;
@@ -928,23 +950,21 @@ function adjustPlayDelay(param) {
 
 	// collect stats
 	bufferStats.push(lagTime);			// is mlagTime reliable over network server?
-	if(bufferStats.length > 32) bufferStats.shift();			// was 32 length
+	if(bufferStats.length > 16) bufferStats.shift();			// was 32 length
 	playStats = stdev(bufferStats);
 //	playDelay = playStats.mean;			// done
 
-	var trialPlayDelay=playDelay; 
 	var pDur = getDuration();
 	if(playStats.mean < playDelay) {		// catch up (less delay)
-		if(pDur < 60000) trialPlayDelay = playStats.mean  + 1*playStats.deviation;	
-		else			 trialPlayDelay = playStats.mean;			// slow updates, just keep up
+		if(pDur < 60000) playDelay = playStats.mean  + 1*playStats.deviation;	
+		else			 pDelay = playStats.mean;			// slow updates, just keep up
 	}
 	else {									// fall back (more delay).  Be careful about backwards-going time
 		if((playStats.mean - playDelay) > loopDelay) {			// no adjust for small changes (avoid jitter)
-			trialPlayDelay = playDelay + loopDelay;							// limit backwards-going time
+			playDelay = playDelay + loopDelay;					// limit backwards-going time
+			playDelay = (playDelay + playStats.mean)/2;			// slew backwards-going time
 		}
 	}
-
-	if(Math.abs(trialPlayDelay - playDelay) > pDur/4) playDelay = trialPlayDelay;
 	
 	if(debug) 
 		console.debug('PlayDelay: '+ playDelay+
