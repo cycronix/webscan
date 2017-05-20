@@ -739,7 +739,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	}
 	
 	if(!playDelay) playDelay = 0;			// firewall (DT?)
-//	if(debug) 
+	if(debug) 
 		console.debug('rtCollection, time: '+time+', playDelay: '+playDelay+', newestTime: '+newestTime+', getDuration: '+getDuration());
 		
 	// stripchart fetch data on interval
