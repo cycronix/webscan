@@ -770,11 +770,12 @@
     	  maxValueString = chartOptions.timerangeFormatter(this.valueRange.max);
     	  
     	  labelPos = dimensions.width - context.measureText(maxValueString).width - 2;
-    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, 0, dimensions.width-labelPos, chartOptions.labels.fontSize); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
+    	  var fs = 1 + parseFloat(chartOptions.labels.fontSize); 			// MJM
+    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, 0, dimensions.width-labelPos+1, fs); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
           context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize); 
           
     	  labelPos = dimensions.width - context.measureText(minValueString).width - 2;
-    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, dimensions.height-chartOptions.labels.fontSize, dimensions.width-labelPos, chartOptions.labels.fontSize); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
+    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, dimensions.height-fs, dimensions.width-labelPos+1, fs); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
           context.fillText(minValueString, labelPos, dimensions.height - 2);
       }
       else {
@@ -786,6 +787,9 @@
       // MJM display number of points:
       if(chartOptions.numPointsFormatter) {
     	  var numValueString = chartOptions.numPointsFormatter(numPtsTotal);
+    	  var fs = 1 + parseFloat(chartOptions.labels.fontSize); 		
+    	  var fl = context.measureText(numValueString).width;
+    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(0, 0, fl+3, fs); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
           context.fillText(numValueString, 2, chartOptions.labels.fontSize);
       }
       
