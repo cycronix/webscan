@@ -769,17 +769,12 @@
     	  minValueString = chartOptions.timerangeFormatter(this.valueRange.min);
     	  maxValueString = chartOptions.timerangeFormatter(this.valueRange.max);
     	  
-
-    	  context.shadowColor = "white"; context.shadowOffsetX = 1; context.shadowOffsetY = 1;		// MJM
     	  labelPos = dimensions.width - context.measureText(maxValueString).width - 2;
-          context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize);    
-    	  labelPos = dimensions.width - context.measureText(minValueString).width - 2;
-          context.fillText(minValueString, labelPos, dimensions.height - 2);
+    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, 0, dimensions.width-labelPos, chartOptions.labels.fontSize); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
+          context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize); 
           
-    	  context.shadowColor = "white"; context.shadowOffsetX = -1; context.shadowOffsetY = -1;	// MJM
-    	  labelPos = dimensions.width - context.measureText(maxValueString).width - 2;
-          context.fillText(maxValueString, labelPos, chartOptions.labels.fontSize);    
     	  labelPos = dimensions.width - context.measureText(minValueString).width - 2;
+    	  context.fillStyle = "rgba(255, 255, 255, 0.7)"; context.fillRect(labelPos-1, dimensions.height-chartOptions.labels.fontSize, dimensions.width-labelPos, chartOptions.labels.fontSize); context.fillStyle = chartOptions.labels.fillStyle;	// MJM
           context.fillText(minValueString, labelPos, dimensions.height - 2);
       }
       else {
