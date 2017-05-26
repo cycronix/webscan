@@ -1214,7 +1214,7 @@ function AjaxGet(myfunc, url, args) {
 	};
 	xmlhttp.open("GET",url,true);	
 	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
-	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag || duration==0.)) 
+	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.)) 
 		xmlhttp.setRequestHeader("If-None-Match", param+":"+headerInfo[param].gotTime);
 	
 	fetchActive(true);
