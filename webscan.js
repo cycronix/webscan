@@ -1796,7 +1796,7 @@ function AjaxGetParamTimeOldest(param) {
 //buildCharts:  build canvas and smoothie charts
 
 function buildCharts() {
-//	buildFlexCharts(); return;
+//	buildGridCharts(); return;
 	
 	refreshInProgress = true;
 	if(debug) console.log('buildCharts: '+plots.length);
@@ -1933,10 +1933,10 @@ function buildCharts() {
 }	
 
 //----------------------------------------------------------------------------------------
-// buildFlexCharts:  build canvas and smoothie charts - using flexbox
+// buildGridCharts:  build canvas and smoothie charts - using bootstrap grid layout
 // Work in progress, not ready for prime time
 
-function buildFlexCharts() {
+function buildGridCharts() {
 	refreshInProgress = true;
 	if(debug) console.log('buildFlexCharts: '+plots.length);
 	gotTime = [];					// reset newTime array
@@ -1945,7 +1945,7 @@ function buildFlexCharts() {
 
 	// clean up
 	var graphs=document.getElementById("dgraphs");
-	graphs.className="flex-container";
+	graphs.className="container-fluid";
 	while(graphs.firstChild) graphs.removeChild(graphs.firstChild);	// clear old		
 	var Wg = graphs.clientWidth;		// fixed value all plots
 
@@ -1972,21 +1972,24 @@ function buildFlexCharts() {
 	}
 	if(ncol > plots.length) ncol = plots.length;
 	var nrow = Math.ceil(plots.length / ncol);	
-
+	var smN = Math.ceil(12 / plots.length);
+//	smN = 12;			// full-width?
+	
 	var iplot = 0;
 	for(var iplot=0; iplot<plots.length; iplot++) {
-
-		var flexbox = document.createElement('li');
-		flexbox.className = "flex-item";
-
-//		flexbox.width = (graphs.clientWidth/ncol-15); 		// width used in setting chart duration
-//		flexbox.height = (window.innerHeight/nrow - 20)/2;
-		console.debug('iplot: '+iplot+', ncol: '+ncol+', nrow: '+nrow+', w: '+flexbox.width+', h: '+flexbox.height);
-		graphs.appendChild(flexbox);
+		var row = document.createElement('div');
+		row.className = "row";
+		graphs.appendChild(row);
+		var grid = document.createElement('div');
+		grid.className = "col-sm-"+smN;
+		grid.style.position = "relative";
+		row.appendChild(grid);
+		
+		console.debug('iplot: '+iplot+', ncol: '+ncol+', nrow: '+nrow+', class: '+grid.className);
 
 		// plotDiv child of graphDiv	
 		var plotTable = document.createElement('table');
-		flexbox.appendChild(plotTable);
+		grid.appendChild(plotTable);
 
 		var prow = plotTable.insertRow(0);
 		var pcell0 = prow.insertCell(0); 
@@ -2049,9 +2052,14 @@ function buildFlexCharts() {
 			canvas[i].style.zIndex = maxLayer - i;		// order alpha on top
 			pcell1.appendChild(canvas[i]);
 			
-			var r = canvas[i].parentElement.getBoundingClientRect();
+//			var r = canvas[i].parentElement.getBoundingClientRect();
+			var r = grid.getBoundingClientRect();
 			canvas[i].width = r.width;
 			canvas[i].height = r.height;
+			
+//			canvas[i].width = Wg/ncol-15; 			// width used in setting chart duration
+//			Hg = (graphs.clientHeight / nrow) - pcell0.offsetHeight - 20;
+//			canvas[i].height = Hg;		// ensure same for all
 		}
 		addListeners(pcell1);							// add listener to cell (vs canvas layer)
 		// associate smoothie chart with canvas
