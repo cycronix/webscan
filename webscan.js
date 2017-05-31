@@ -2470,7 +2470,7 @@ function clearPlotSelect(cb) {
 
 function goBOF() {
 	goPause();
-//	getLimits(1,0);		// ??
+	getLimits(1,0);		// ??
 	reScale = true;
 	stepDir= -1;
 	if(debug) console.log("goBOF");
