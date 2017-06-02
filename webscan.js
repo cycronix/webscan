@@ -1136,7 +1136,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 		if(onestep) {
 //			/*		// done in setParamValue()
 			for(var j=0; j<plots.length; j++) {
-				if(debug) console.debug('refresh render: '+lastreqTime);
+//				if(debug) console.debug('refresh render: '+lastreqTime);
 				plots[j].render(lastreqTime);	// see the data?
 			}
 //			*/
@@ -1171,6 +1171,7 @@ function AjaxGet(myfunc, url, args) {
 		var pidx = args[1];
 		var duration = args[2];
 		var time = args[3];
+		var reftime = args[4];
 	}
 	
 	var xmlhttp=new XMLHttpRequest();
@@ -1214,7 +1215,7 @@ function AjaxGet(myfunc, url, args) {
 	};
 	xmlhttp.open("GET",url,true);	
 	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
-	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.)) 
+	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.) && reftime=="absolute") 
 		xmlhttp.setRequestHeader("If-None-Match", param+":"+headerInfo[param].gotTime);
 	
 	fetchActive(true);
@@ -1685,6 +1686,7 @@ function updateTimeLimits(time) {
 	if(time > newestTime) newestTime = time;
 	if(time!=0 && (time < oldestTime || oldestTime==0)) {
 		oldestTime = time;
+//		console.log("updateTimeLimits, oldestTime: "+oldestTime);
 	}
 }
 
@@ -1729,6 +1731,7 @@ function updateNewest() {
 function updateOldest() {
 //	console.debug("updateOldest!");
 	oldestTime = new Date().getTime();		// force update
+//	console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
 
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
@@ -1760,7 +1763,7 @@ function AjaxGetParamTimeNewest(param) {
 			}
 		}
 	};
-	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
 }
@@ -1787,7 +1790,7 @@ function AjaxGetParamTimeOldest(param) {
 			}
 		}
 	};
-	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
 }
@@ -3388,6 +3391,7 @@ function vidscan(param) {
     	var instance = this;			// for reference inside onreadystatechange function
     	var xmlhttp=new XMLHttpRequest();
     	var duration = parseFloat(getURLParam(url, 'd'));
+    	var reftime = getURLParam(url,'r');
     	
     	xmlhttp.onreadystatechange=function() {
         	fetchActive(false);
@@ -3455,9 +3459,10 @@ function vidscan(param) {
     	xmlhttp.open("GET",url,true);
     	xmlhttp.responseType = 'arraybuffer';
 //    	xmlhttp.responseType = 'blob';
-    	if(headerInfo[param] && headerInfo[param].gotTime) {
+//    	if(headerInfo[param] && headerInfo[param].gotTime) {
+    	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.) && reftime=="absolute") {
     		xmlhttp.setRequestHeader("If-None-Match", param+":"+headerInfo[param].gotTime);
-//    		console.log('fetch image, url: '+url+', gotTime: '+headerInfo[param].gotTime);
+    		if(debug) console.log('fetch image if-none-match, url: '+url+', gotTime: '+headerInfo[param].gotTime);
     	}
     	fetchActive(true);
     	xmlhttp.send();
@@ -3508,6 +3513,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 //		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
 		if(Told < oldestTime)
 			oldestTime = Told;
+//			console.log("updateHeader, oldestTime: "+oldestTime);
 	}
 
 	var hnewest = xmlhttp.getResponseHeader("newest");		
@@ -3549,7 +3555,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		headerInfo[param].gotStatus = NONE;
 
 	if(debug) 
-		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+duration+', hlag: '+hlag+', blockDur: '+headerInfo[param].blockDur+', hnew: '+headerInfo[param].newest);
+		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+hdur+', hlag: '+hlag+', holdest: '+holdest+', hnew: '+headerInfo[param].newest);
 }
 
 
