@@ -413,7 +413,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	if((typeof(param) == 'undefined') || param == null) return;			// undefined
 	
 	// all setTime on display not fetch	
-	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
+//	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	isImage = endsWith(param, ".jpg");	// this is a global, affects logic based on last-plot (still issue with mixed stripcharts/images)
@@ -3426,7 +3426,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.5)
+						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.9)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
@@ -3437,6 +3437,7 @@ function vidscan(param) {
 					}
 					if(!headerInfo[param].gotTime) headerInfo[param].gotTime = 1000*(parseFloat(getURLParam(url,'t'))+duration);		// for DT
 				}
+				else updateStatus(param, xmlhttp.status);			// non-pending even if dupe or missing
 				
     			if(xmlhttp.status==200 || xmlhttp.status == 304) {				
     				if(debug && isPause()) console.log('AjaxGetImage while paused! url: '+url);
@@ -3471,15 +3472,17 @@ function vidscan(param) {
 
 //----------------------------------------------------------------------------------------	
 function showImage (count, param, img, images, dt) { 
+//	console.log('showImage: '+count+', images.length: '+images.length); 
 	if(count < images.length) {
-//		console.log('showImage: '+count+', images.length: '+images.length); 
 		img.src = images[count];
 		count = count+1;
 //		if(count==images.length) updateStatus(param,200);		// early notify?
-		setTimeout(function() { showImage(count, param, img, images, dt) }, dt); 
-	} else {
-		updateStatus(param, 200);
-		images = [];
+
+		if(count<images.length) setTimeout(function() { showImage(count, param, img, images, dt) }, dt); 
+		else {
+			updateStatus(param, 200);
+			images = [];
+		}
 	}
 }
 
@@ -3487,9 +3490,11 @@ function showImage (count, param, img, images, dt) {
 // updateHeaderInfo: parse HTTP header for time info, update globals
 
 function updateStatus(param, httpstatus) {
+//	console.debug('update status param: '+param+', httpstatus: '+httpstatus);
 	if(!headerInfo[param]) headerInfo[param] = {};
-	if(httpstatus==200) headerInfo[param].gotStatus = GOTTEN;
-	else				headerInfo[param].gotStatus = NONE;
+	if(httpstatus==200) 
+			headerInfo[param].gotStatus = GOTTEN;
+	else	headerInfo[param].gotStatus = NONE;
 }
 
 function updateHeaderInfo(xmlhttp, url, param) {
@@ -3501,7 +3506,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		 tstamp = getURLParam(url, 't');
 		 headerInfo[param].newEntry = true;
 		 headerInfo[param].gotTime = 0;						// signal for it to be filled in on data-parse
-		 if(xmlhttp.status != 200) headerInfo[param].gotStatus = NONE;
+//		 if(xmlhttp.status != 200) headerInfo[param].gotStatus = NONE;
 		 return;											// DT has no header entries, just return
 	}
 	var tstamp2 = xmlhttp.getResponseHeader("Last-Modified");
@@ -3551,8 +3556,8 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(xmlhttp.status==200) {		// only update some params if gotten
 //		headerInfo[param].gotStatus = GOTTEN;
 		headerInfo[param].gotTime =T + headerInfo[param].duration;			// most recent value
-	} else					
-		headerInfo[param].gotStatus = NONE;
+	} 
+//	else	headerInfo[param].gotStatus = NONE;
 
 	if(debug) 
 		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+hdur+', hlag: '+hlag+', holdest: '+holdest+', hnew: '+headerInfo[param].newest);
