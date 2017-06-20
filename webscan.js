@@ -3516,9 +3516,10 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(holdest != null) {
 		var Told = 1000 * Number(holdest);
 //		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
-		if(Told < oldestTime)
+//		if(Told < oldestTime)
+		if(Told < oldestTime || ref=="oldest")		// force oldestTime update on ref=oldest request
 			oldestTime = Told;
-//			console.log("updateHeader, oldestTime: "+oldestTime);
+//		console.log("updateHeader, oldestTime: "+oldestTime);
 	}
 
 	var hnewest = xmlhttp.getResponseHeader("newest");		
