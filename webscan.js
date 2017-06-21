@@ -637,7 +637,8 @@ function setParamValue(text, url, args) {
 		lastgotTime = time;
 		if(refTime=="oldest") { 
 //			setTime(time);	document.getElementById('TimeSelect').value=0; 	 	// all setTime on display not fetch 		
-			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime=oldgotTime; 
+			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime = oldgotTime; 
+			if(debug) console.debug("set oldTime to oldgotTime: "+oldgotTime);
 		}	
 		else if(refTime=="newest") { 
 //			setTime(time);	document.getElementById('TimeSelect').value=100;  	// all setTime on display not fetch
@@ -1090,7 +1091,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 	
 	// check for going past EOF, BOF
 	var now = new Date().getTime();
-	oldgotTime = now;		// init
+	oldgotTime = 0;		// init
 	newgotTime = 0;
 	
 	lastreqTime = 0;
@@ -1686,7 +1687,7 @@ function updateTimeLimits(time) {
 	if(time > newestTime) newestTime = time;
 	if(time!=0 && (time < oldestTime || oldestTime==0)) {
 		oldestTime = time;
-//		console.log("updateTimeLimits, oldestTime: "+oldestTime);
+		console.log("updateTimeLimits, oldestTime: "+oldestTime);
 	}
 }
 
@@ -1731,7 +1732,8 @@ function updateNewest() {
 function updateOldest() {
 //	console.debug("updateOldest!");
 	oldestTime = new Date().getTime();		// force update
-//	console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
+	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
+	if(debug) console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
 
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
