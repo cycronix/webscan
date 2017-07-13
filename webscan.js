@@ -413,7 +413,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	if((typeof(param) == 'undefined') || param == null) return;			// undefined
 	
 	// all setTime on display not fetch	
-	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
+//	if(debug) console.log('fetchData, param: '+param+', duration: '+duration+', time: '+time+", refTime: "+refTime);
 
 //	if(inProgress >= 2) return;		// skip fetching if way behind?
 	isImage = endsWith(param, ".jpg");	// this is a global, affects logic based on last-plot (still issue with mixed stripcharts/images)
@@ -637,7 +637,8 @@ function setParamValue(text, url, args) {
 		lastgotTime = time;
 		if(refTime=="oldest") { 
 //			setTime(time);	document.getElementById('TimeSelect').value=0; 	 	// all setTime on display not fetch 		
-			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime=oldgotTime; 
+			if(oldgotTime<oldestTime && oldgotTime!=0) oldestTime = oldgotTime; 
+			if(debug) console.debug("set oldTime to oldgotTime: "+oldgotTime);
 		}	
 		else if(refTime=="newest") { 
 //			setTime(time);	document.getElementById('TimeSelect').value=100;  	// all setTime on display not fetch
@@ -1090,7 +1091,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 	
 	// check for going past EOF, BOF
 	var now = new Date().getTime();
-	oldgotTime = now;		// init
+	oldgotTime = 0;		// init
 	newgotTime = 0;
 	
 	lastreqTime = 0;
@@ -1136,7 +1137,7 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 		if(onestep) {
 //			/*		// done in setParamValue()
 			for(var j=0; j<plots.length; j++) {
-				if(debug) console.debug('refresh render: '+lastreqTime);
+//				if(debug) console.debug('refresh render: '+lastreqTime);
 				plots[j].render(lastreqTime);	// see the data?
 			}
 //			*/
@@ -1171,6 +1172,7 @@ function AjaxGet(myfunc, url, args) {
 		var pidx = args[1];
 		var duration = args[2];
 		var time = args[3];
+		var reftime = args[4];
 	}
 	
 	var xmlhttp=new XMLHttpRequest();
@@ -1214,7 +1216,7 @@ function AjaxGet(myfunc, url, args) {
 	};
 	xmlhttp.open("GET",url,true);	
 	xmlhttp.onerror = function() { goPause();  /* alert('WebScan Request Failed (Server Down?)'); */ };		// quiet!
-	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.)) 
+	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.) && reftime=="absolute") 
 		xmlhttp.setRequestHeader("If-None-Match", param+":"+headerInfo[param].gotTime);
 	
 	fetchActive(true);
@@ -1685,6 +1687,7 @@ function updateTimeLimits(time) {
 	if(time > newestTime) newestTime = time;
 	if(time!=0 && (time < oldestTime || oldestTime==0)) {
 		oldestTime = time;
+		console.log("updateTimeLimits, oldestTime: "+oldestTime);
 	}
 }
 
@@ -1729,6 +1732,8 @@ function updateNewest() {
 function updateOldest() {
 //	console.debug("updateOldest!");
 	oldestTime = new Date().getTime();		// force update
+	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
+	if(debug) console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
 
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
@@ -1760,7 +1765,7 @@ function AjaxGetParamTimeNewest(param) {
 			}
 		}
 	};
-	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
 }
@@ -1787,7 +1792,7 @@ function AjaxGetParamTimeOldest(param) {
 			}
 		}
 	};
-	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
 }
@@ -2470,7 +2475,7 @@ function clearPlotSelect(cb) {
 
 function goBOF() {
 	goPause();
-//	getLimits(1,0);		// ??
+	getLimits(1,0);		// ??
 	reScale = true;
 	stepDir= -1;
 	if(debug) console.log("goBOF");
@@ -3388,6 +3393,7 @@ function vidscan(param) {
     	var instance = this;			// for reference inside onreadystatechange function
     	var xmlhttp=new XMLHttpRequest();
     	var duration = parseFloat(getURLParam(url, 'd'));
+    	var reftime = getURLParam(url,'r');
     	
     	xmlhttp.onreadystatechange=function() {
         	fetchActive(false);
@@ -3422,7 +3428,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.5)
+						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.9)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
@@ -3433,6 +3439,7 @@ function vidscan(param) {
 					}
 					if(!headerInfo[param].gotTime) headerInfo[param].gotTime = 1000*(parseFloat(getURLParam(url,'t'))+duration);		// for DT
 				}
+				else updateStatus(param, xmlhttp.status);			// non-pending even if dupe or missing
 				
     			if(xmlhttp.status==200 || xmlhttp.status == 304) {				
     				if(debug && isPause()) console.log('AjaxGetImage while paused! url: '+url);
@@ -3455,9 +3462,10 @@ function vidscan(param) {
     	xmlhttp.open("GET",url,true);
     	xmlhttp.responseType = 'arraybuffer';
 //    	xmlhttp.responseType = 'blob';
-    	if(headerInfo[param] && headerInfo[param].gotTime) {
+//    	if(headerInfo[param] && headerInfo[param].gotTime) {
+    	if(headerInfo[param] && headerInfo[param].gotTime && (top.rtflag==RT || duration==0.) && reftime=="absolute") {
     		xmlhttp.setRequestHeader("If-None-Match", param+":"+headerInfo[param].gotTime);
-//    		console.log('fetch image, url: '+url+', gotTime: '+headerInfo[param].gotTime);
+    		if(debug) console.log('fetch image if-none-match, url: '+url+', gotTime: '+headerInfo[param].gotTime);
     	}
     	fetchActive(true);
     	xmlhttp.send();
@@ -3466,15 +3474,17 @@ function vidscan(param) {
 
 //----------------------------------------------------------------------------------------	
 function showImage (count, param, img, images, dt) { 
+//	console.log('showImage: '+count+', images.length: '+images.length); 
 	if(count < images.length) {
-//		console.log('showImage: '+count+', images.length: '+images.length); 
 		img.src = images[count];
 		count = count+1;
 //		if(count==images.length) updateStatus(param,200);		// early notify?
-		setTimeout(function() { showImage(count, param, img, images, dt) }, dt); 
-	} else {
-		updateStatus(param, 200);
-		images = [];
+
+		if(count<images.length) setTimeout(function() { showImage(count, param, img, images, dt) }, dt); 
+		else {
+			updateStatus(param, 200);
+			images = [];
+		}
 	}
 }
 
@@ -3482,9 +3492,11 @@ function showImage (count, param, img, images, dt) {
 // updateHeaderInfo: parse HTTP header for time info, update globals
 
 function updateStatus(param, httpstatus) {
+//	console.debug('update status param: '+param+', httpstatus: '+httpstatus);
 	if(!headerInfo[param]) headerInfo[param] = {};
-	if(httpstatus==200) headerInfo[param].gotStatus = GOTTEN;
-	else				headerInfo[param].gotStatus = NONE;
+	if(httpstatus==200) 
+			headerInfo[param].gotStatus = GOTTEN;
+	else	headerInfo[param].gotStatus = NONE;
 }
 
 function updateHeaderInfo(xmlhttp, url, param) {
@@ -3496,7 +3508,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		 tstamp = getURLParam(url, 't');
 		 headerInfo[param].newEntry = true;
 		 headerInfo[param].gotTime = 0;						// signal for it to be filled in on data-parse
-		 if(xmlhttp.status != 200) headerInfo[param].gotStatus = NONE;
+//		 if(xmlhttp.status != 200) headerInfo[param].gotStatus = NONE;
 		 return;											// DT has no header entries, just return
 	}
 	var tstamp2 = xmlhttp.getResponseHeader("Last-Modified");
@@ -3506,8 +3518,16 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(holdest != null) {
 		var Told = 1000 * Number(holdest);
 //		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
-		if(Told < oldestTime)
+//		if(Told < oldestTime)
+		if(!headerInfo[param].oldest || Told<headerInfo[param].oldest) headerInfo[param].oldest = Told;
+		if(Told < oldestTime || ref=="oldest") {		// force oldestTime update on ref=oldest request
 			oldestTime = Told;
+			for(var hi in headerInfo) {
+				if(headerInfo[hi].oldest < oldestTime) oldestTime = headerInfo[hi].oldest;
+//				console.log("check oldest of oldest, this:"+headerInfo[hi].oldest+", oldestTime: "+oldestTime);
+			}
+		}
+//		console.log("updateHeader, oldestTime: "+oldestTime);
 	}
 
 	var hnewest = xmlhttp.getResponseHeader("newest");		
@@ -3545,11 +3565,11 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(xmlhttp.status==200) {		// only update some params if gotten
 //		headerInfo[param].gotStatus = GOTTEN;
 		headerInfo[param].gotTime =T + headerInfo[param].duration;			// most recent value
-	} else					
-		headerInfo[param].gotStatus = NONE;
+	} 
+//	else	headerInfo[param].gotStatus = NONE;
 
 	if(debug) 
-		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+duration+', hlag: '+hlag+', blockDur: '+headerInfo[param].blockDur+', hnew: '+headerInfo[param].newest);
+		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+hdur+', hlag: '+hlag+', holdest: '+holdest+', hnew: '+headerInfo[param].newest);
 }
 
 
