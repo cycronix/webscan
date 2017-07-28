@@ -2184,7 +2184,8 @@ function mouseDown(e) {
 	if(!mouseIsStep) return;		// step only for non-video
 
 	var rect = e.target.getBoundingClientRect();
-	mouseClickX = rect1x / (rect.right - rect.left);
+	mouseClickX =(rect1x - rect.left) / (rect.right - rect.left);	
+//	console.debug("mouseClickX: "+mouseClickX+", right: "+rect.right+", left: "+rect.left);
 	oldStepTime=0;
 	if(mouseClickX >= 0.5) 	setTimeout(function(){mouseStep("next");}, 100);
 	else					setTimeout(function(){mouseStep("prev");}, 100);
