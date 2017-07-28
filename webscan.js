@@ -1024,6 +1024,12 @@ function waitDone(maxWait) {
 //stepCollection:  step next/prev data (images only)
 
 function stepCollection(iplot, time, refdir) {
+	
+	time = headerInfo[plots[iplot].params[0]].gotTime;		// simply go with first param of clicked-plot?
+	if(refdir=="next") 	time += 0.1;							// possible round-off error?
+	else				time -= 0.1;
+	refreshCollection(true,time,getDuration(),refdir);			// full-update all plots
+/*	
 	// find and step image with oldest time
 	var idx= 0;
 	var param=plots[iplot].params[idx];
@@ -1062,8 +1068,10 @@ function stepCollection(iplot, time, refdir) {
 	}
 	
 	var url = serverAddr + servletRoot+"/"+escape(plots[iplot].params[idx])+"?dt=b&t="+(time/1000.)+"&r="+refdir;
+//	console.log("stepCollection, time: "+time+", url: "+url);
 	plots[iplot].display.setImage(url,param,0);
 	setTime(headerInfo[param].gotTime);		// all setTime on display not fetch
+	*/
 }
 
 //----------------------------------------------------------------------------------------
@@ -2178,8 +2186,8 @@ function mouseDown(e) {
 	var rect = e.target.getBoundingClientRect();
 	mouseClickX = rect1x / (rect.right - rect.left);
 	oldStepTime=0;
-	if(mouseClickX >= 0.5) 	setTimeout(function(){mouseStep("next");}, 500);
-	else					setTimeout(function(){mouseStep("prev");}, 500);
+	if(mouseClickX >= 0.5) 	setTimeout(function(){mouseStep("next");}, 100);
+	else					setTimeout(function(){mouseStep("prev");}, 100);
 }
 
 function mouseStep(dir) {
@@ -3568,6 +3576,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	} 
 //	else	headerInfo[param].gotStatus = NONE;
 
+//	console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+", url: "+url);
 	if(debug) 
 		console.log('updateHeader, gotTime['+param+']: '+headerInfo[param].gotTime+', htime: '+T+', hdur: '+hdur+', hlag: '+hlag+', holdest: '+holdest+', hnew: '+headerInfo[param].newest);
 }
