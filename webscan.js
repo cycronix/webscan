@@ -650,7 +650,7 @@ function setParamValue(text, url, args) {
 //		console.debug('setParamValue, newTime: '+newTime[param]);
 	}
 	
-	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime);
+	if(debug) console.log("setParamValue url: "+url+", nval: "+nval+", lastgotTime: "+lastgotTime+", pidx: "+pidx);
 }
 
 //----------------------------------------------------------------------------------------
@@ -692,7 +692,7 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 	
 	if(plots[pidx] && (plots[pidx].type == "stripchart")) {
 		if(duration >= getDuration() && top.rtflag==PAUSE) {
-			if(debug) console.debug("setParamValue, clear line, top.rtflag: "+top.rtflag);
+			if(debug) console.debug("setParamBinary, clear line, top.rtflag: "+top.rtflag);
 			plots[pidx].display.lines[param].clear();		// if full-refresh, clear old data
 		}
 		
@@ -746,7 +746,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	// stripchart fetch data on interval
 	headerInfo = [];		// reset
 	bufferStats = [];
-	lastFetch = [];
+//	lastFetch = [];
 	
 	playStats = null;	
 	
@@ -793,7 +793,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 					headerInfo[param].gotStatus = NONE;
 					headerInfo[param].gotTime = lastgotTime;
 				}
-				if(!lastFetch[param]) lastFetch[param] = 0;
+//				if(!lastFetch[param]) lastFetch[param] = 0;
 				
 				if(debug) {
 					if(headerInfo[param].gotStatus == PENDING) console.debug('gotStatus['+param+']: PENDING');
@@ -801,7 +801,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 					if(headerInfo[param].gotStatus == NONE) console.debug('gotStatus['+param+']: NONE');
 				}
 						
-				// -------PLAYDELAY:  adjust delay from RT				
+				// -------PLAYDELAY:  adjust delay from RT		
+//				console.debug('rtflag: '+top.rtflag+', firstParam: '+firstParam+", param: "+param+", newEntry: "+headerInfo[param].newEntry);
 				if(top.rtflag==RT && firstParam && headerInfo[param].newEntry) {
 					headerInfo[param].newEntry = false;
 					if(slowdownCount>1000) bufferStats = [];		// reset stats if long gap
@@ -810,11 +811,11 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 						console.log('adjustPtime: '+ptime+', playDelay: '+playDelay+', gotStatus: '+headerInfo[param].gotStatus+', param: '+param);
 				}
 				firstParam = false;
-
-				if(headerInfo[param].gotStatus==PENDING) continue;		// this won't queue anything (robust but images not as fast?)
+				
+// 				following theoretically saves queuing up more requests but breaks duplicate-channel plots
+//				if(headerInfo[param].gotStatus==PENDING) continue; 				// this won't queue anything (robust but images not as fast?)
 
 				// --------MEDIA: image
-
 				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!
 //					if(endsWith(param,'.txt') && top.rtflag==RT)	
 //					fetchData(param, j, 0, 0, "newest");			// text:  always get newest if RT (galumps!)
@@ -830,7 +831,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 						}
 
 						if(debug) 
-							console.debug('media RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
+							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay);
 
 //						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
 						fetchData(param, j, 2*playDelay, tfetch, "absolute");			// get past expected most-recent data
@@ -845,16 +846,17 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				// --------STRIPCHART: time-series data at tDelay
 
 				else if(dtRT>=tDelay) {	
-//					console.log('dtRT: '+dtRT+', tDelay: '+tDelay);
 					if(endsWith(param,'.txt')) {											// text: always zero duration
 						if(top.rtflag==RT) 	fetchData(param, j, 0, 0, "newest");			// get newest if RT (galumps!)
 						else				fetchData(param, j, 0, ptime, "absolute");
 					} 
 					else {	
 						if(runningCount>0) plots[j].start();							// delay scrolling until SECOND time through for smooth startup (no-op if already started)
-						if(firstStripchartChan) plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (right-edge of plot) on first plot param							
-
-						firstStripchartChan = false;
+						if(firstStripchartChan) {
+							plots[j].setDelay(playDelay+skootch);	// set smoothie plot delay (right-edge of plot) on first plot param	
+							firstStripchartChan = false;
+						}
+						
 						if(headerInfo[param].gotTime)	tfetch = headerInfo[param].gotTime;
 						else 							tfetch = ptime-pDur;							// init or DT
 
@@ -864,7 +866,6 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							dfetch = 2*playDelay;									// get past expected most-recent data
 						} 
 						else 	dfetch = tDelay + ptime - tfetch;						// little extra (gap?)
-
 						if(dfetch > 100*pDur) dfetch = 100*pDur;						// avoid monster fetch
 						if(dfetch > 0) {
 							fetchData(param, j, dfetch, tfetch, "absolute");			// fetch latest data (async) 
@@ -943,7 +944,7 @@ function playTime() {		// time at which to fetch (msec)
 //----------------------------------------------------------------------------------------
 // adjustPlayDelay:  try to figure out appropriate delay for "smooth" data display given variable data arrival time
 function adjustPlayDelay(param) {
-
+//console.debug('adjustPlayDelay!');
 	var now = new Date().getTime();
 	var newTime = headerInfo[param].newest;
 	if(newTime > 0) 	lagTime = now - newTime;			// this may include clock-misalignment
@@ -959,7 +960,7 @@ function adjustPlayDelay(param) {
 
 	var pDur = getDuration();
 	if(playStats.mean < playDelay) {		// catch up (less delay)
-		if(pDur < 60000) playDelay = playStats.mean  + 1*playStats.deviation;	
+		if(pDur < 60000) playDelay = playStats.mean  + 1*playStats.deviation;			// was 3*
 		else			 pDelay = playStats.mean;			// slow updates, just keep up
 	}
 	else {									// fall back (more delay).  Be careful about backwards-going time
@@ -2749,6 +2750,7 @@ function plot() {
 	this.addValue = function(param, time, value) {
 		if((value!=undefined) && !isNaN(value)) { 	// possible with slow initial fetch
 			var line = this.lines[param];
+			if(!line) return;
 			var nosort=false;	// nosort causes smoothie plot glitches!
 			if(line.data.length > 2000) nosort = true;		// large plots can't afford sorting (exponential work!) was 20000
 
@@ -2970,7 +2972,7 @@ function plot() {
 				this.ymax = vmax;
 				this.ymin = vmin;			
 				if(plots.length==1 && scalingMode=="Auto") reScale = false;	// one-shot rescale flag (logic doesn't work per-plot)
-				if(debug) console.debug("stdscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
+//				if(debug) console.debug("stdscale, vmax: "+vmax+", ymax: "+this.ymax+", vmin: "+vmin+", ymin: "+this.ymin);
 			}
 
 			// keep it zero-centered if close
