@@ -832,7 +832,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 						if(debug) 
 							console.debug('media RT fetch, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay+', lastFetch: '+lastFetch[param]);
 
-						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
+//						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
+						fetchData(param, j, 2*playDelay, tfetch, "absolute");			// get past expected most-recent data
 					}
 					else {
 						fetchData(param, j, 0, ptime, "absolute");
@@ -859,11 +860,12 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 
 						if(top.rtflag==RT) {
 							if(tfetch < (ptime-2*pDur)) tfetch = ptime-2*pDur;		// jump ahead if unreasonable gap
-							dfetch = 2*pDur;										// get past expected most-recent data
+//							dfetch = 2*pDur;										// get past expected most-recent data
+							dfetch = 2*playDelay;									// get past expected most-recent data
 						} 
 						else 	dfetch = tDelay + ptime - tfetch;						// little extra (gap?)
 
-						if(dfetch > 10*pDur) dfetch = 10*pDur;							// avoid monster fetch
+						if(dfetch > 100*pDur) dfetch = 100*pDur;						// avoid monster fetch
 						if(dfetch > 0) {
 							fetchData(param, j, dfetch, tfetch, "absolute");			// fetch latest data (async) 
 							headerInfo[param].gotStatus = PENDING;
@@ -3437,7 +3439,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.9)
+						dt = 0.95*dt;				// play a little fast to help catchup if behind (was *0.9)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
