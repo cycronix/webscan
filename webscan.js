@@ -106,8 +106,8 @@ var PENDING=0;						// gotData status states
 var GOTTEN=1;
 var NONE=2;
 
-var bufferStats = [];
-var playStats = null;			// need to refresh on new RT
+//var bufferStats = [];
+//var playStats = null;			// need to refresh on new RT
 
 var setRT=false;				// boolean to set RT button state
 
@@ -766,10 +766,9 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		
 	// stripchart fetch data on interval
 	headerInfo = [];		// reset
-	bufferStats = [];
+//	bufferStats = [];
 //	lastFetch = [];
-	
-	playStats = null;	
+//	playStats = null;	
 	
 	var tfetch = 0;
 	var pDur = getDuration();		// msec
@@ -831,8 +830,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 //				console.debug('rtflag: '+top.rtflag+', firstParam: '+firstParam+", param: "+param+", newEntry: "+headerInfo[param].newEntry);
 				if(top.rtflag==RT && firstParam && headerInfo[param].newEntry) {
 					headerInfo[param].newEntry = false;
-					if(slowdownCount>1000) bufferStats = [];		// reset stats if long gap
 					
+//					if(slowdownCount>1000) bufferStats = [];		// reset stats if long gap	
 //					ptime = adjustPlayDelay(param);	
 //					if(debug) console.log('adjustPtime: '+ptime+', playDelay: '+playDelay+', gotStatus: '+headerInfo[param].gotStatus+', param: '+param);
 					
@@ -883,9 +882,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							if(top.rtflag==RT) {
 								var duration = getDuration();
 //								var skootch = playDelay + tDelay + duration;
-								var skootch = playDelay + tDelay;
-
-//								skootch = (skootch + oldSkootch) / 2;		// slew
+								var skootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
 								if( (skootch > oldSkootch) || ((oldSkootch - skootch) > duration) ) {
 									if(debug) console.log('skootch: '+skootch+', oldSkootch: '+oldSkootch);
 									if(skootch<oldSkootch) skootch = (skootch + oldSkootch) / 2;		// slew if catching up
@@ -938,33 +935,18 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		}
 		else {
 			// warning:  a successful fetch above may happen async such that a long wait below happens after first wake-up
-			var newWay=false;			// meh, jerking loopDelay causes jerky displays?
-			if(newWay) {
-				if(lastgotTime > prevgotTime)	{	// success
-					loopDelay = totDelay / 2;
-					totDelay = 0;
-//					loopDelay = loopDelay/2;		// speed up
-					if(loopDelay < tDelay/10) loopDelay = tDelay / 10;
-				} else {
-					totDelay += loopDelay;
-					loopDelay = 1.1*loopDelay;		// slow down
-					if(loopDelay > 10*tDelay) loopDelay = 10*tDelay;
-				}
+			if(lastgotTime > prevgotTime) {
+				slowdownCount=0;
 				intervalID = setTimeout(doRT,loopDelay);
+			} else {
+				slowdownCount++;				// ease up if not getting data
+				if(slowdownCount < 100) 		intervalID = setTimeout(doRT,loopDelay);	// <10s, keep going fast
+				else if(slowdownCount < 150)	intervalID = setTimeout(doRT,loopDelay*10);		// 10s to 1min
+				else if(slowdownCount < 740)	intervalID = setTimeout(doRT,loopDelay*20);	// 1min to ~10min
+				else if(slowdownCount < 4000)	intervalID = setTimeout(doRT,loopDelay*50);	// 10 min to ~2 hours
+				else 							goPause();	// stop if long-time no data
 			}
-			else {
-				if(lastgotTime > prevgotTime) {
-					slowdownCount=0;
-					intervalID = setTimeout(doRT,loopDelay);
-				} else {
-					slowdownCount++;				// ease up if not getting data
-					if(slowdownCount < 100) 		intervalID = setTimeout(doRT,loopDelay);	// <10s, keep going fast
-					else if(slowdownCount < 150)	intervalID = setTimeout(doRT,loopDelay*10);		// 10s to 1min
-					else if(slowdownCount < 740)	intervalID = setTimeout(doRT,loopDelay*20);	// 1min to ~10min
-					else if(slowdownCount < 4000)	intervalID = setTimeout(doRT,loopDelay*50);	// 10 min to ~2 hours
-					else 							goPause();	// stop if long-time no data
-				}
-			}
+
 			if(debug) 
 				console.debug('slowdownCount: '+slowdownCount+', lastgotTime: '+lastgotTime+', prevgotTime: '+prevgotTime+', loopDelay: '+loopDelay+", totDelay: "+totDelay);
 			prevgotTime = lastgotTime;
