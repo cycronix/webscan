@@ -153,7 +153,7 @@ function webscan(server) {
 
 	buildCharts();					// build  stripcharts
 //	setTimeout(function(){buildCharts();}, 500); 	// rebuild after init? (for chartscan, complete channel lists)
-	getLimits(1,1);					// establish time limits
+//	getLimits(1,1);					// establish time limits (expensive)
 //	goEOF();
 	setTimeout(function(){ goBOF();}, 1000); 		// make sure data is shown at startup (was goBOF, 1000)
 
