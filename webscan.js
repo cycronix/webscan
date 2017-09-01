@@ -137,6 +137,14 @@ function webscan(server) {
 
 	setTime(new Date().getTime());
 
+	// refresh cache on save-url
+	if( getURLValue('reindex')) {
+		refreshCache();
+		var winloc = (' '+window.location).slice(1);	// force deep-copy window location string
+		winloc = winloc.replace("&reindex","");			// strip norefresh param from current URL
+		window.history.replaceState(window.state, window.title, winloc);
+	}
+	
 	fetchChanList();					// build source select pull down
 	if(plots.length == 0) setPlots(1);	// start with one empty plot
 //	goEOF();							// end of file to start
@@ -287,7 +295,7 @@ function reloadConfig() {
 	stopRT();			// stop RT
 	configParams(getCookie(myName));
 	var url = myURL();
-	var urlhref = url.protocol + '//' + url.host + url.pathname + getCookie(myName);
+	var urlhref = url.protocol + '//' + url.host + url.pathname + getCookie(myName) + "&reindex";
 //	if(debug) console.debug('reloadConfig getCookie: '+getCookie(myName)+', myName: '+myName+', href: '+urlhref);
 
 	url.href = urlhref		
@@ -2559,15 +2567,17 @@ function togglePlay(el){
 	return false;
 }
 
+function refreshCache() {
+	AjaxGet(function(resp) { if(debug) console.log("got response from refresh!!!"); }, serverAddr + servletRoot+"/?r=refresh");
+}
+
 function goEOF() {
 	goPause();
 //	getLimits(0,1);		// ??
 	reScale = true;
 	stepDir= 1;
-	if(debug) console.log("goEOF");
+	if(debug) console.log("goEOF");	
 	refreshCollection(true,0,getDuration(),"newest");
-//	goTime(100);			
-//	refreshCollection(true,newestTime,getDuration(),"absolute");	// absolute EOF per newestTime (same all chans)
 	setRT = true;		// set button state to RT
 	document.getElementById('play').innerHTML = 'RT';
 }
