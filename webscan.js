@@ -2994,6 +2994,8 @@ function plot() {
 			}
 			this.ymin = range.min;
 			this.ymax = range.max;
+			if(range.min == 0 && range.max == 0) return {min: -1, max: 1};					// nominal +/-1 if all zero data
+
 			return({min: range.min, max: range.max});
 		}
 
