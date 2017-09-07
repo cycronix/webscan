@@ -656,8 +656,11 @@ function setParamValue(text, url, args) {
 		}
 	}
 	else return;		// notta
-		
-	if(singleStep && plots[pidx].nfetch==0  && top.rtflag!=PAUSE) {												// last param this plot by counter
+	
+	// render here or in refreshCollection3?  here picks up late-arrival of data better (e.g. LOTS of channels)
+//	console.debug("setParamValue, pidx: "+pidx+", nfetch: "+plots[pidx].nfetch);
+	if(singleStep && plots[pidx].nfetch==0 && top.rtflag!=PAUSE) {		// last param this plot by counter	// MJM123 change: render here always (vs refreshcollection3)
+//	if(singleStep && plots[pidx].nfetch==0 /* && top.rtflag!=PAUSE */) {		// last param this plot by counter
 		if(debug) console.debug('singleStep render, lastreqTime: '+lastreqTime+", tend: "+time);
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
 		else				plots[pidx].render(0);					// use last point got
@@ -737,10 +740,9 @@ function setParamBinary(values, url, param, pidx, duration, reqtime, refTime) {
 		console.debug('setParamBinary, nval: '+nval+', tstart: '+reqtime+", tend: "+time+', duration: '+duration);
 	
  		// done in refreshCollection? 
-//	if(singleStep && (param == plots[pidx].params[plots[pidx].params.length-1]) && top.rtflag!=PAUSE) {			// last param this plot
-	if(singleStep && plots[pidx].nfetch==0  && top.rtflag!=PAUSE) {												// last param this plot by counter
+	if(singleStep && plots[pidx].nfetch==0 && top.rtflag!=PAUSE) {						// MJM123:  refresh in setParamValue vs refreshCollection
+//	if(singleStep && plots[pidx].nfetch==0 /* && top.rtflag!=PAUSE */) {										// last param this plot by counter
 		if(debug) console.debug('singleStep render(binary), lastreqTime: '+lastreqTime+", tend: "+time);
-//		plots[pidx].render(0);				// use last point got
 		if(lastreqTime > 0) plots[pidx].render(lastreqTime);		// animation off, update incrementally
 		else				plots[pidx].render(0);					// use last point got
 	} 
@@ -1181,9 +1183,9 @@ function refreshCollection3(maxwait, onestep, time, fetchdur, reftime) {
 	
 	if(!resetMode) {
 		if(onestep) {
-//			/*		// done in setParamValue()
+//			/*		// done in setParamValue()		// MJM123
 			for(var j=0; j<plots.length; j++) {
-//				if(debug) console.debug('refresh render: '+lastreqTime);
+				if(debug) console.debug('refresh render plotidx: '+j);
 				plots[j].render(lastreqTime);	// see the data?
 			}
 //			*/
@@ -1921,6 +1923,8 @@ function buildCharts() {
 				node.style.whiteSpace="nowrap";
 				var param = plots[iplot].params[j];
 				if(plots[iplot].params.length > 1) param = param.split("/").pop(); 	// truncate to just param name if multiple
+				if(param.charAt(param.length-4) == '.') param = param.substring(0,param.length-4);	// strip suffix for display
+				
 				node.innerHTML = param;
 				node.id = 'label'+j;
 				node.style.color = plots[iplot].color(j);
@@ -2994,7 +2998,8 @@ function plot() {
 		}
 
 		else {													// Auto and Standard scaling
-
+			if(range.min == 0 && range.max == 0) return {min: -1, max: 1};					// nominal +/-1 if all zero data
+			
 			var vmin = roundHumane(range.min,0);
 			var vmax = roundHumane(range.max,1);
 			if((vmin*vmax>0) && (vmin/vmax <= 0.25)) vmin = 0.;
