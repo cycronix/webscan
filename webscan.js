@@ -798,6 +798,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var slowdownCount = 0;
 	var t1 = 0;
 	var t2 = t1;
+	var skootch = 0;
 	var oldSkootch = 0;
 	var runningCount=0;
 	
@@ -806,13 +807,14 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		var ptime = playTime();	
 		var anyplots = false;
 		var firstParam = true;
+		var firstStripchartChan = true;
 
 		var t2 = new Date().getTime();
 		var dtRT = t2 - t1;
 		
 		for(var j=0; j<plots.length; j++) {
 			var dfetch = 0;
-			var firstStripchartChan = true;
+//			var firstStripchartChan = true;
 
 			for(var i=0; i<plots[j].params.length; i++) {
 				var now = new Date().getTime();			// ref
@@ -892,17 +894,16 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							if(top.rtflag==RT) {
 								var duration = getDuration();
 //								var skootch = playDelay + tDelay + duration;
-								var skootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
-								if( (skootch > oldSkootch) || ((oldSkootch - skootch) > duration) ) {
-									if(debug) console.log('skootch: '+skootch+', oldSkootch: '+oldSkootch);
-									if(skootch<oldSkootch) skootch = (skootch + oldSkootch) / 2;		// slew if catching up
-									plots[j].setDelay(skootch);	// set smoothie plot delay (right-edge of plot) on first plot param	
-									oldSkootch = skootch;
-								}
-							} else plots[j].setDelay(playDelay+tDelay);			// doesn't change after startup of playback
-
+								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+								if(tskootch<oldSkootch) 							skootch = (tskootch + oldSkootch) / 2;	// slew if catching up
+								else if( (tskootch - oldSkootch) > (duration/10.) ) skootch = tskootch;
+								if(debug) console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
+							} 
+							else skootch = playDelay + tDelay;
 							firstStripchartChan = false;
 						}
+						if(debug) console.log('skootch: '+skootch+', oldSkootch: '+oldSkootch);
+						plots[j].setDelay(skootch);
 
 						if(headerInfo[param].gotTime)	tfetch = headerInfo[param].gotTime + 0.001;
 						else 							tfetch = ptime-pDur;							// init or DT
@@ -936,6 +937,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 			}	// end params loop
 		}	// end plots loop
 
+		oldSkootch = skootch;
 		setTime(ptime);					// requested data time
 //		if(lastgotTime > prevgotTime) setTime(lastgotTime);					// requested data time
 
