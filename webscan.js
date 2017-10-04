@@ -85,6 +85,7 @@ var isTouchSupported=false;
 var singleStep=false;				// set based on RTrate/View ratio
 var isImage=false;					// latest plot is image?
 var numCol=0;						// numcols per plot row (0=auto)
+var numYgrid=4;						// num y-grid divisions
 var reScale=true;					// one shot rescale flag
 var rtmode=1;						// real-time mode flag (rtmode==1 for latest play-RT MJM 8/24/16)
 var playStr="&gt;";					// ">" play mode
@@ -310,6 +311,7 @@ function configParams(src) {
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		else setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
+	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('c', ngrid);
 
 	if(serverAddr) 	document.getElementById("topbar").innerHTML = "WebScan : " + serverAddr;
 	else			document.getElementById("topbar").innerHTML = "WebScan";
@@ -388,6 +390,20 @@ function setCols(ncol) {
 	var el = document.getElementById('Ncol');
 	for(var i=0; i<el.options.length; i++) {
 		if(ncol == el.options[i].value) {		// enforce consistency
+			el.options[i].selected=true;
+			break;
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------
+//setCols:  initialize numYgrid
+
+function setGrid(ngrid) {
+	numYgrid = ngrid;
+	var el = document.getElementById('Grids');
+	for(var i=0; i<el.options.length; i++) {
+		if(ngrid == el.options[i].value) {		// enforce consistency
 			el.options[i].selected=true;
 			break;
 		}
@@ -1400,6 +1416,17 @@ function ncolSelect(cb) {
 	numCol = cb.options[cb.selectedIndex].value;
 	setConfig('c',numCol);
 	noRebuild=false;		// no hang
+	rebuildPage();
+}
+
+//----------------------------------------------------------------------------------------    
+//gridYselect:  onchange y-grid divisions select
+
+function gridYselect(cb) {
+	numYgrid = cb.options[cb.selectedIndex].value;
+	setConfig('y',numYgrid);
+	noRebuild=false;		// no hang
+	for(var i=0; i<plots.length; i++) plots[i].setYgrid(numYgrid); 
 	rebuildPage();
 }
 
@@ -2659,7 +2686,7 @@ function plot() {
 	this.params = new Array();
 	this.lines = {};
 	this.horizGrids = 10;					// grid lines per plot width
-	this.vertGrids = 4;						// grid lines per plot height
+	this.vertGrids = numYgrid;				// grid lines per plot height
 	this.width = 800;						// adjustable plot width (pixels)
 	this.fillStyle = 'rgba(0,0,0,0.1)';		// under-line fill alpha
 	this.doFill=false;						// under-line fill?
@@ -2673,6 +2700,7 @@ function plot() {
 	this.autoScale=true;					
 	this.ymin = 0.;
 	this.ymax = 0.;
+	this.vertGrids = numYgrid;
 	
 	// over-ride defaults if provided 
 	for (var n in arguments[0]) { this[n] = arguments[0][n]; }
@@ -2918,6 +2946,10 @@ function plot() {
 			this.chart.seriesSet[j].options.fillStyle=fill;
 		}
 	};
+	
+	this.setYgrid = function(ygrid) {
+		this.chart.options.grid.verticalSections = ygrid;
+	}
 	
 	// set scale in terms of normalized offset and range
 	this.setScale = function(yoffset, yrange) {
@@ -3177,6 +3209,12 @@ function plotbox() {
 	this.setSmooth = function(dosmooth) {
 		switch(this.type) {
 			case 'stripchart':	this.display.setSmooth(dosmooth);	break;
+		}
+	};
+	
+	this.setYgrid = function(ygrid) {
+		switch(this.type) {
+			case 'stripchart':	this.display.setYgrid(ygrid);	break;
 		}
 	};
 	

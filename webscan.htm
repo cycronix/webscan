@@ -64,7 +64,7 @@
 
 <div id="options"  border=1>
     <table class="o">
-    	<tr><td colspan=2 align="center">Webscan V3.1B10</td></tr>
+    	<tr><td colspan=2 align="center">Webscan V3.1B11</td></tr>
         <tr><td>Smooth</td><td><input id="smooth" type="checkbox" onclick="smoothCheck(this)"></td></tr>
         
         <tr><td>Fill</td><td><input id="fill" type="checkbox" onclick="fillCheck(this)"></td></tr>
@@ -139,7 +139,19 @@
 				<option value="4">4</>
 			</select>
 		</td></tr> 
-		         
+		
+		<tr><td>Grids</td><td>
+        	<select id="Grids" onchange="gridYselect(this)">
+        	    <option value="2">2</>
+        		<option value="4" selected="selected">4</>
+				<option value="5">5</>
+				<option value="8">8</>
+				<option value="10">10</>
+				<option value="16">16</>
+				<option value="20">20</>
+			</select>
+		</td></tr> 
+		     
         <tr><td id="myUpdateLabel">Refresh</td><td>
 			<select id="myUpdate" onchange="updateSelect(this)">
 				<option value="200">Fast</option>
