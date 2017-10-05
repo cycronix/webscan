@@ -85,6 +85,7 @@ var isTouchSupported=false;
 var singleStep=false;				// set based on RTrate/View ratio
 var isImage=false;					// latest plot is image?
 var numCol=0;						// numcols per plot row (0=auto)
+var numYgrid=8;						// num y-grid divisions
 var reScale=true;					// one shot rescale flag
 var rtmode=1;						// real-time mode flag (rtmode==1 for latest play-RT MJM 8/24/16)
 var playStr="&gt;";					// ">" play mode
@@ -310,6 +311,7 @@ function configParams(src) {
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		else setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
+	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('c', ngrid);
 
 	if(serverAddr) 	document.getElementById("topbar").innerHTML = "WebScan : " + serverAddr;
 	else			document.getElementById("topbar").innerHTML = "WebScan";
@@ -388,6 +390,20 @@ function setCols(ncol) {
 	var el = document.getElementById('Ncol');
 	for(var i=0; i<el.options.length; i++) {
 		if(ncol == el.options[i].value) {		// enforce consistency
+			el.options[i].selected=true;
+			break;
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------
+//setCols:  initialize numYgrid
+
+function setGrid(ngrid) {
+	numYgrid = ngrid;
+	var el = document.getElementById('Grids');
+	for(var i=0; i<el.options.length; i++) {
+		if(ngrid == el.options[i].value) {		// enforce consistency
 			el.options[i].selected=true;
 			break;
 		}
@@ -798,6 +814,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 	var slowdownCount = 0;
 	var t1 = 0;
 	var t2 = t1;
+	var skootch = 0;
 	var oldSkootch = 0;
 	var runningCount=0;
 	
@@ -806,13 +823,14 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 		var ptime = playTime();	
 		var anyplots = false;
 		var firstParam = true;
+		var firstStripchartChan = true;
 
 		var t2 = new Date().getTime();
 		var dtRT = t2 - t1;
 		
 		for(var j=0; j<plots.length; j++) {
 			var dfetch = 0;
-			var firstStripchartChan = true;
+//			var firstStripchartChan = true;
 
 			for(var i=0; i<plots[j].params.length; i++) {
 				var now = new Date().getTime();			// ref
@@ -892,17 +910,16 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							if(top.rtflag==RT) {
 								var duration = getDuration();
 //								var skootch = playDelay + tDelay + duration;
-								var skootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
-								if( (skootch > oldSkootch) || ((oldSkootch - skootch) > duration) ) {
-									if(debug) console.log('skootch: '+skootch+', oldSkootch: '+oldSkootch);
-									if(skootch<oldSkootch) skootch = (skootch + oldSkootch) / 2;		// slew if catching up
-									plots[j].setDelay(skootch);	// set smoothie plot delay (right-edge of plot) on first plot param	
-									oldSkootch = skootch;
-								}
-							} else plots[j].setDelay(playDelay+tDelay);			// doesn't change after startup of playback
-
+								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+								if(tskootch<oldSkootch) 							skootch = (tskootch + oldSkootch) / 2;	// slew if catching up
+								else if( (tskootch - oldSkootch) > (duration/10.) ) skootch = tskootch;
+								if(debug) console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
+							} 
+							else skootch = playDelay + tDelay;
 							firstStripchartChan = false;
 						}
+						if(debug) console.log('skootch: '+skootch+', oldSkootch: '+oldSkootch);
+						plots[j].setDelay(skootch);
 
 						if(headerInfo[param].gotTime)	tfetch = headerInfo[param].gotTime + 0.001;
 						else 							tfetch = ptime-pDur;							// init or DT
@@ -936,6 +953,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 			}	// end params loop
 		}	// end plots loop
 
+		oldSkootch = skootch;
 		setTime(ptime);					// requested data time
 //		if(lastgotTime > prevgotTime) setTime(lastgotTime);					// requested data time
 
@@ -1398,6 +1416,17 @@ function ncolSelect(cb) {
 	numCol = cb.options[cb.selectedIndex].value;
 	setConfig('c',numCol);
 	noRebuild=false;		// no hang
+	rebuildPage();
+}
+
+//----------------------------------------------------------------------------------------    
+//gridYselect:  onchange y-grid divisions select
+
+function gridYselect(cb) {
+	numYgrid = cb.options[cb.selectedIndex].value;
+	setConfig('y',numYgrid);
+	noRebuild=false;		// no hang
+	for(var i=0; i<plots.length; i++) plots[i].setYgrid(numYgrid); 
 	rebuildPage();
 }
 
@@ -2657,7 +2686,7 @@ function plot() {
 	this.params = new Array();
 	this.lines = {};
 	this.horizGrids = 10;					// grid lines per plot width
-	this.vertGrids = 4;						// grid lines per plot height
+	this.vertGrids = numYgrid;				// grid lines per plot height
 	this.width = 800;						// adjustable plot width (pixels)
 	this.fillStyle = 'rgba(0,0,0,0.1)';		// under-line fill alpha
 	this.doFill=false;						// under-line fill?
@@ -2671,6 +2700,7 @@ function plot() {
 	this.autoScale=true;					
 	this.ymin = 0.;
 	this.ymax = 0.;
+	this.vertGrids = numYgrid;
 	
 	// over-ride defaults if provided 
 	for (var n in arguments[0]) { this[n] = arguments[0][n]; }
@@ -2916,6 +2946,10 @@ function plot() {
 			this.chart.seriesSet[j].options.fillStyle=fill;
 		}
 	};
+	
+	this.setYgrid = function(ygrid) {
+		this.chart.options.grid.verticalSections = ygrid;
+	}
 	
 	// set scale in terms of normalized offset and range
 	this.setScale = function(yoffset, yrange) {
@@ -3175,6 +3209,12 @@ function plotbox() {
 	this.setSmooth = function(dosmooth) {
 		switch(this.type) {
 			case 'stripchart':	this.display.setSmooth(dosmooth);	break;
+		}
+	};
+	
+	this.setYgrid = function(ygrid) {
+		switch(this.type) {
+			case 'stripchart':	this.display.setYgrid(ygrid);	break;
 		}
 	};
 	
