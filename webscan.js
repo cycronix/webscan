@@ -85,7 +85,7 @@ var isTouchSupported=false;
 var singleStep=false;				// set based on RTrate/View ratio
 var isImage=false;					// latest plot is image?
 var numCol=0;						// numcols per plot row (0=auto)
-var numYgrid=4;						// num y-grid divisions
+var numYgrid=8;						// num y-grid divisions
 var reScale=true;					// one shot rescale flag
 var rtmode=1;						// real-time mode flag (rtmode==1 for latest play-RT MJM 8/24/16)
 var playStr="&gt;";					// ">" play mode
