@@ -3616,12 +3616,14 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		var Told = 1000 * Number(holdest);
 //		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
 //		if(Told < oldestTime)
-		if(!headerInfo[param].oldest || Told<headerInfo[param].oldest) headerInfo[param].oldest = Told;
+//		if(!headerInfo[param].oldest || Told<headerInfo[param].oldest) 
+			headerInfo[param].oldest = Told;
 		if(Told < oldestTime || ref=="oldest") {		// force oldestTime update on ref=oldest request
 			oldestTime = Told;
+//			console.log("updateHeaderInfo, Told: "+Told+", oldestTime: "+oldestTime);
 			for(var hi in headerInfo) {
 				if(headerInfo[hi].oldest < oldestTime) oldestTime = headerInfo[hi].oldest;
-//				console.log("check oldest of oldest, this:"+headerInfo[hi].oldest+", oldestTime: "+oldestTime);
+//				console.log("check oldest of oldest: "+hi+", this:"+headerInfo[hi].oldest+", oldestTime: "+oldestTime);
 			}
 		}
 //		console.log("updateHeader, oldestTime: "+oldestTime);
