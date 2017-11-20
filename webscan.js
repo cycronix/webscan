@@ -2560,6 +2560,7 @@ function goBOF() {
 	stepDir= -1;
 	if(debug) console.log("goBOF");
 	refreshCollection(true,0,getDuration(),"oldest");	// time is right-edge!
+	document.getElementById('play').innerHTML = '>';		// make sure not RT 
 //	goTime(0);			// absolute BOF per oldestTime (same all chans)
 }
 
