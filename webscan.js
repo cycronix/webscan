@@ -305,20 +305,20 @@ function reloadConfig() {
 function configParams(src) {
 	var dt 		 = getURLParam(src,'dt');	if(dt != null) setRate(dt);						setConfig('dt',tDelay);
 	var nplot 	 = getURLParam(src,'n');  	if(nplot != null) setPlots(parseInt(nplot));	else setConfig('n', nplot);
-	var numcol 	 = getURLParam(src,'c');  	if(numcol != null) setCols(parseInt(numcol)); else numcol = 0;	setConfig('c', numCol);
+	var numcol 	 = getURLParam(src,'c');  	if(numcol != null) setCols(parseInt(numcol)); else numCol = 0;	setConfig('c', numCol);
 	var fill 	 = getURLParam(src,'f');	setFill(fill=="true");							setConfig('f', fill=="true");
 	var smooth 	 = getURLParam(src,'sm');	setSmooth(smooth=="true");						setConfig('sm', smooth=="true");		// was 's'
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		else setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
-	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('c', ngrid);
+	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('y', ngrid);
 
 	if(serverAddr) 	document.getElementById("topbar").innerHTML = "WebScan : " + serverAddr;
 	else			document.getElementById("topbar").innerHTML = "WebScan";
 	
 	// RT mode (one-shot param)
 	var irtm  	 = getURLParam(src,'rt'); 	if(irtm!=null) rtmode=Number(irtm);
-//	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
+//	console.debug('configParams, numcol: '+numcol+", numCol: "+numCol);
 	
 	for(var i=0; i<nplot; i++) {
 		for(var j=0; j<maxParam; j++) {
@@ -1515,7 +1515,11 @@ function rePlay() {
 //stopRT:  clear RT timer
 
 function stopRT() {
-	if(debug) console.log("stopRT. playStr: "+playStr);
+	if(debug) {
+		console.log("stopRT. playStr: "+playStr);
+		console.trace();
+	}
+	
 	if(intervalID != 0) clearInterval(intervalID);
 	intervalID = 0;
 	for(var i=0; i<plots.length; i++) plots[i].stop(); 
