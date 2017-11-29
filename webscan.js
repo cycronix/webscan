@@ -1139,7 +1139,6 @@ function refreshCollection(onestep, time, fetchdur, reftime) {				// time is rig
 //	onestep=false for refilling plot and continuing with RT data 
 	refreshInProgress=true;
 	if(debug) console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep+', newestTime: '+newestTime);
-
 	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
 }
@@ -1641,6 +1640,15 @@ function rebuildPageWait(maxWait) {
 	rebuildPage();
 }
 
+function callFunctionWait(maxWait,func) {
+	if((inProgress>0 || refreshInProgress) && maxWait>0) { 						// wait til prior update done
+//		console.debug('inProgress: '+inProgress+', refreshInProgress: '+refreshInProgress);
+		setTimeout(function(){callFunctionWait(--maxWait,func);}, 100); 
+		return; 
+	}
+	func();
+}
+
 function rebuildPage() {
 	if(noRebuild) return;								// notta
 	if(debug) console.log('rebuildPage!');
@@ -1660,12 +1668,12 @@ function rebuildPage2(maxWait) {
 		return; 
 	}
 	
-	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
-//	if(getTime()>newestTime) setTime(oldestTime);
-	if(getTime()>newestTime) setTime(newestTime);
+	// oldestTime may be in state of flux (0)...
+//	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
+//	if(getTime()>newestTime) setTime(newestTime);
 
-	
-	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) {
+//	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) {
+	if((getTime()<oldestTime || getTime()>newestTime) || oldestTime == 0) {
 //		setTime(oldestTime+getDuration());
 		refreshCollection(true,0,getDuration(),"oldest");
 	}
@@ -1719,6 +1727,7 @@ function setTime(time) {
 }
 
 function setTimeSlider(time) {	
+//	console.trace();
 	var el = document.getElementById('TimeSelect');
 	if(newestTime == 0 || oldestTime == 0) {   			// failsafe	
 		if(debug) console.log("WARNING:  setTimeSlider without limits, newestTime: "+newestTime+", oldestTime: "+oldestTime);
@@ -1808,9 +1817,10 @@ function updateNewest() {
 //get oldest all plot params
 function updateOldest() {
 //	console.debug("updateOldest!");
-	oldestTime = new Date().getTime();		// force update
-	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
-	if(debug) console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
+//	oldestTime = new Date().getTime();		// force update?
+//	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
+	oldestTime = 0;	// ??
+	if(debug) console.log("updateOldest: "+oldestTime);
 
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
@@ -1826,6 +1836,7 @@ function AjaxGetParamTimeNewest(param) {
 	if(debug) console.debug(' AjaxGetParamTimeNewest, url: '+url);
 
 	xmlhttp.onreadystatechange=function() {
+//		console.log("AjaxGetTimeNewest, xmlstatus: "+xmlhttp.status+", readyState: "+xmlhttp.readyState);
 		if (xmlhttp.readyState==4) {
 	    	fetchActive(false);
 
@@ -1840,11 +1851,13 @@ function AjaxGetParamTimeNewest(param) {
 			else {  				
 				console.log('AjaxGetParamTime Error: '+url);
 			}
+        	if(inProgress>0) inProgress--;
 		}
 	};
-	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
+	inProgress++;
 }
 
 function AjaxGetParamTimeOldest(param) {	
@@ -1859,19 +1872,22 @@ function AjaxGetParamTimeOldest(param) {
 
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
-				if(ptime < oldestTime) {
+				if(oldestTime==0 || ptime < oldestTime) {
 					oldestTime = ptime;
 				}
-				if(debug) console.debug("AjaxGetParamTimeOldest, param: "+param+", response.length: "+xmlhttp.responseText.length+', oldestTime: '+oldestTime);
+				if(debug) 
+					console.debug("AjaxGetParamTimeOldest, param: "+param+", response: "+xmlhttp.responseText+', oldestTime: '+oldestTime);
 			}
 			else {  				
 				console.log('AjaxGetParamTime Error: '+url);
 			}
+        	if(inProgress>0) inProgress--;
 		}
 	};
-	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
+	inProgress++;
 }
 
 //----------------------------------------------------------------------------------------
@@ -2188,7 +2204,7 @@ function addListeners(c) {
 	c.addEventListener(startEvent,mouseDown, false); 	
 	c.addEventListener(endEvent,  mouseUp,   false);	
 	c.addEventListener(outEvent,  mouseOut,   false);	 
-	c.addEventListener("mousewheel", mouseWheel, false);
+	c.addEventListener("mousewheel", mouseWheel,  { passive: true });		// was false, make passive per Chrome warning
 }
 
 var rect1x=0;
@@ -2521,6 +2537,7 @@ function addChanSelect() {
 		resetLimits(pplot);
 		rebuildPageWait(20);
 		goBOF();
+//		callFunctionWait(20,goBOF);
 	}
 	else rebuildPageWait(20);
 }
