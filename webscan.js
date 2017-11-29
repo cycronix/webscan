@@ -1515,11 +1515,7 @@ function rePlay() {
 //stopRT:  clear RT timer
 
 function stopRT() {
-	if(debug) {
-		console.log("stopRT. playStr: "+playStr);
-		console.trace();
-	}
-	
+	if(debug) console.log("stopRT. playStr: "+playStr);
 	if(intervalID != 0) clearInterval(intervalID);
 	intervalID = 0;
 	for(var i=0; i<plots.length; i++) plots[i].stop(); 
