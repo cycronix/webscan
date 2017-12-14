@@ -886,10 +886,15 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							else 								tfetch = newestTime;					// jump ahead if unreasonable gap
 						}
 						if(debug) 
-							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay);
+							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime);
 
-//						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
-						fetchData(param, j, 2*playDelay, tfetch, "absolute");			// get past expected most-recent data
+//						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
+						var mdur = 2*playDelay;
+						if(mdur > 1) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images?
+						else		 fetchData(param, j, mdur, tfetch, "absolute");		// get past expected most-recent data
+						
+						if(debug) 
+							console.debug('media fetch mdur: '+mdur+', playDelay: '+playDelay);
 					}
 					else {
 						fetchData(param, j, 0, ptime, "absolute");
@@ -910,10 +915,13 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							if(top.rtflag==RT) {
 								var duration = getDuration();
 //								var skootch = playDelay + tDelay + duration;
-								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+//								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+								var tskootch = playDelay/2 + tDelay;		// tighter RT display
+
 								if(tskootch<oldSkootch) 							skootch = (tskootch + oldSkootch) / 2;	// slew if catching up
 								else if( (tskootch - oldSkootch) > (duration/10.) ) skootch = tskootch;
-								if(debug) console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
+								if(debug) 
+									console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
 							} 
 							else skootch = playDelay + tDelay;
 							firstStripchartChan = false;
@@ -1735,6 +1743,7 @@ function setTimeSlider(time) {
 		return;
 	}
 	var mDur = 0.;
+	// TO DO: maybe use left-edge (no duration) if FIRST plot is image
 //	if(!isImage) 					// isImage unreliable global, async.  try always adjust
 		mDur = getDuration();		// duration msec	
 		
@@ -3544,7 +3553,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.95*dt;				// play a little fast to help catchup if behind (was *0.9)
+						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.95)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
