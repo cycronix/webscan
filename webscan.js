@@ -1628,7 +1628,8 @@ function resetParams() {
 function fetchActive(status) {
 //	console.debug('fetchActive: '+status);
 	if(status) 	{
-		document.getElementById("timestamp").style.color = "red";
+		// no flicker!
+//		document.getElementById("timestamp").style.color = "red";
 //		document.body.style.cursor = 'wait';
 	} else {
 //		document.body.style.cursor = 'default';
@@ -1725,7 +1726,7 @@ function setTimeNoSlider(time) {
 
 // sets "current" time, left-edge time on stripcharts
 function setTime(time) {	
-//	if(debug) console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
+//	console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
 //	console.trace();
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
@@ -3666,6 +3667,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 			if(headerInfo[param].newest) headerInfo[param].blockDur = Tnew - headerInfo[param].newest;
 			headerInfo[param].newest = Tnew;
 		}
+//		console.debug("Tnew: "+Tnew+", newestTime: "+newestTime+", hnewest: "+hnewest);
 		if(Tnew > newestTime) newestTime = Tnew;
 	}
 	else AjaxGetParamTimeNewest(param);						// if not in header, fetch as separate call (e.g. for DT)
