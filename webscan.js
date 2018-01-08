@@ -305,20 +305,20 @@ function reloadConfig() {
 function configParams(src) {
 	var dt 		 = getURLParam(src,'dt');	if(dt != null) setRate(dt);						setConfig('dt',tDelay);
 	var nplot 	 = getURLParam(src,'n');  	if(nplot != null) setPlots(parseInt(nplot));	else setConfig('n', nplot);
-	var numcol 	 = getURLParam(src,'c');  	if(numcol != null) setCols(parseInt(numcol)); else numcol = 0;	setConfig('c', numCol);
+	var numcol 	 = getURLParam(src,'c');  	if(numcol != null) setCols(parseInt(numcol)); else numCol = 0;	setConfig('c', numCol);
 	var fill 	 = getURLParam(src,'f');	setFill(fill=="true");							setConfig('f', fill=="true");
 	var smooth 	 = getURLParam(src,'sm');	setSmooth(smooth=="true");						setConfig('sm', smooth=="true");		// was 's'
 	var duration = getURLParam(src,'v');	if(duration != null) setDuration(duration);		else setConfig('v', duration);
 	var scaling  = getURLParam(src,'sc');	if(scaling != null) setScaling(scaling);		setConfig('sc', scaling);
 	var server   = getURLParam(src,'sv'); 	if(server != null) serverAddr = server;			setConfig('sv', serverAddr);
-	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('c', ngrid);
+	var ngrid 	 = getURLParam(src,'y');  	if(ngrid != null) setGrid(parseInt(ngrid)); else ngrid = 4;	setConfig('y', ngrid);
 
 	if(serverAddr) 	document.getElementById("topbar").innerHTML = "WebScan : " + serverAddr;
 	else			document.getElementById("topbar").innerHTML = "WebScan";
 	
 	// RT mode (one-shot param)
 	var irtm  	 = getURLParam(src,'rt'); 	if(irtm!=null) rtmode=Number(irtm);
-//	console.debug('configParams, tDelay: '+tDelay+", nplot: "+nplot+', rtmode: '+rtmode);
+//	console.debug('configParams, numcol: '+numcol+", numCol: "+numCol);
 	
 	for(var i=0; i<nplot; i++) {
 		for(var j=0; j<maxParam; j++) {
@@ -886,10 +886,15 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							else 								tfetch = newestTime;					// jump ahead if unreasonable gap
 						}
 						if(debug) 
-							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime+', playDelay: '+playDelay);
+							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime);
 
-//						fetchData(param, j, 2*pDur, tfetch, "absolute");			// get past expected most-recent data
-						fetchData(param, j, 2*playDelay, tfetch, "absolute");			// get past expected most-recent data
+//						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
+						var mdur = 2*playDelay;
+						if(mdur > 1) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images?
+						else		 fetchData(param, j, mdur, tfetch, "absolute");		// get past expected most-recent data
+						
+						if(debug) 
+							console.debug('media fetch mdur: '+mdur+', playDelay: '+playDelay);
 					}
 					else {
 						fetchData(param, j, 0, ptime, "absolute");
@@ -910,10 +915,13 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							if(top.rtflag==RT) {
 								var duration = getDuration();
 //								var skootch = playDelay + tDelay + duration;
-								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+//								var tskootch = playDelay + tDelay;			// aka skootch = now - firstParam.newest
+								var tskootch = playDelay/2 + tDelay;		// tighter RT display
+
 								if(tskootch<oldSkootch) 							skootch = (tskootch + oldSkootch) / 2;	// slew if catching up
 								else if( (tskootch - oldSkootch) > (duration/10.) ) skootch = tskootch;
-								if(debug) console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
+								if(debug) 
+									console.log('playDelay: '+playDelay+', tskootch: '+tskootch+', skootch: '+skootch+', oldSkootch: '+oldSkootch);
 							} 
 							else skootch = playDelay + tDelay;
 							firstStripchartChan = false;
@@ -1139,7 +1147,6 @@ function refreshCollection(onestep, time, fetchdur, reftime) {				// time is rig
 //	onestep=false for refilling plot and continuing with RT data 
 	refreshInProgress=true;
 	if(debug) console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep+', newestTime: '+newestTime);
-
 	if(stepDir != -2) setPlay(PAUSE,0);								// pause RT
 	refreshCollection2(100, onestep, time, fetchdur, reftime);		// fetch & restart after pause complete
 }
@@ -1621,7 +1628,8 @@ function resetParams() {
 function fetchActive(status) {
 //	console.debug('fetchActive: '+status);
 	if(status) 	{
-		document.getElementById("timestamp").style.color = "red";
+		// no flicker!
+//		document.getElementById("timestamp").style.color = "red";
 //		document.body.style.cursor = 'wait';
 	} else {
 //		document.body.style.cursor = 'default';
@@ -1639,6 +1647,15 @@ function rebuildPageWait(maxWait) {
 		return; 
 	}
 	rebuildPage();
+}
+
+function callFunctionWait(maxWait,func) {
+	if((inProgress>0 || refreshInProgress) && maxWait>0) { 						// wait til prior update done
+//		console.debug('inProgress: '+inProgress+', refreshInProgress: '+refreshInProgress);
+		setTimeout(function(){callFunctionWait(--maxWait,func);}, 100); 
+		return; 
+	}
+	func();
 }
 
 function rebuildPage() {
@@ -1660,12 +1677,12 @@ function rebuildPage2(maxWait) {
 		return; 
 	}
 	
-	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
-//	if(getTime()>newestTime) setTime(oldestTime);
-	if(getTime()>newestTime) setTime(newestTime);
+	// oldestTime may be in state of flux (0)...
+//	if(getTime()<oldestTime) setTime(oldestTime);			// sanity/initialization checks
+//	if(getTime()>newestTime) setTime(newestTime);
 
-	
-	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) {
+//	if((getTime()<oldestTime || getTime()>newestTime) && oldestTime != 0) {
+	if((getTime()<oldestTime || getTime()>newestTime) || oldestTime == 0) {
 //		setTime(oldestTime+getDuration());
 		refreshCollection(true,0,getDuration(),"oldest");
 	}
@@ -1709,7 +1726,7 @@ function setTimeNoSlider(time) {
 
 // sets "current" time, left-edge time on stripcharts
 function setTime(time) {	
-//	if(debug) console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
+//	console.debug('setTime: '+time+', oldestTime: '+oldestTime+', newestTime: '+newestTime);
 //	console.trace();
 	if(time == 0 || isNaN(time)) return;		// uninitialized
 	setTimeNoSlider(time);
@@ -1719,6 +1736,7 @@ function setTime(time) {
 }
 
 function setTimeSlider(time) {	
+//	console.trace();
 	var el = document.getElementById('TimeSelect');
 	if(newestTime == 0 || oldestTime == 0) {   			// failsafe	
 		if(debug) console.log("WARNING:  setTimeSlider without limits, newestTime: "+newestTime+", oldestTime: "+oldestTime);
@@ -1726,6 +1744,7 @@ function setTimeSlider(time) {
 		return;
 	}
 	var mDur = 0.;
+	// TO DO: maybe use left-edge (no duration) if FIRST plot is image
 //	if(!isImage) 					// isImage unreliable global, async.  try always adjust
 		mDur = getDuration();		// duration msec	
 		
@@ -1808,9 +1827,10 @@ function updateNewest() {
 //get oldest all plot params
 function updateOldest() {
 //	console.debug("updateOldest!");
-	oldestTime = new Date().getTime();		// force update
-	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
-	if(debug) console.log("updateOldest, reset to now, oldestTime: "+oldestTime);
+//	oldestTime = new Date().getTime();		// force update?
+//	if(oldestTime < newestTime) oldestTime = newestTime;	// catch case where data is in future
+	oldestTime = 0;	// ??
+	if(debug) console.log("updateOldest: "+oldestTime);
 
 	for(var j=0; j<plots.length; j++) {
 		for(var i=0; i<plots[j].params.length; i++) {
@@ -1826,6 +1846,7 @@ function AjaxGetParamTimeNewest(param) {
 	if(debug) console.debug(' AjaxGetParamTimeNewest, url: '+url);
 
 	xmlhttp.onreadystatechange=function() {
+//		console.log("AjaxGetTimeNewest, xmlstatus: "+xmlhttp.status+", readyState: "+xmlhttp.readyState);
 		if (xmlhttp.readyState==4) {
 	    	fetchActive(false);
 
@@ -1840,11 +1861,13 @@ function AjaxGetParamTimeNewest(param) {
 			else {  				
 				console.log('AjaxGetParamTime Error: '+url);
 			}
+        	if(inProgress>0) inProgress--;
 		}
 	};
-	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
+	inProgress++;
 }
 
 function AjaxGetParamTimeOldest(param) {	
@@ -1859,19 +1882,22 @@ function AjaxGetParamTimeOldest(param) {
 
 			if(xmlhttp.status==200) {
 				var ptime = 1000* Number(xmlhttp.responseText);		// msec
-				if(ptime < oldestTime) {
+				if(oldestTime==0 || ptime < oldestTime) {
 					oldestTime = ptime;
 				}
-				if(debug) console.debug("AjaxGetParamTimeOldest, param: "+param+", response.length: "+xmlhttp.responseText.length+', oldestTime: '+oldestTime);
+				if(debug) 
+					console.debug("AjaxGetParamTimeOldest, param: "+param+", response: "+xmlhttp.responseText+', oldestTime: '+oldestTime);
 			}
 			else {  				
 				console.log('AjaxGetParamTime Error: '+url);
 			}
+        	if(inProgress>0) inProgress--;
 		}
 	};
-	xmlhttp.open("GET",url,false);				// arg3=false for synchronous request
+	xmlhttp.open("GET",url,true);				// arg3=false for synchronous request
 	fetchActive(true);
 	xmlhttp.send();
+	inProgress++;
 }
 
 //----------------------------------------------------------------------------------------
@@ -2188,7 +2214,7 @@ function addListeners(c) {
 	c.addEventListener(startEvent,mouseDown, false); 	
 	c.addEventListener(endEvent,  mouseUp,   false);	
 	c.addEventListener(outEvent,  mouseOut,   false);	 
-	c.addEventListener("mousewheel", mouseWheel, false);
+	c.addEventListener("mousewheel", mouseWheel,  { passive: true });		// was false, make passive per Chrome warning
 }
 
 var rect1x=0;
@@ -2521,6 +2547,7 @@ function addChanSelect() {
 		resetLimits(pplot);
 		rebuildPageWait(20);
 		goBOF();
+//		callFunctionWait(20,goBOF);
 	}
 	else rebuildPageWait(20);
 }
@@ -2555,12 +2582,14 @@ function clearPlotSelect(cb) {
 
 function goBOF() {
 	goPause();
-	getLimits(1,0);		// ??
+//	getLimits(1,0);		// ??
 	reScale = true;
 	stepDir= -1;
 	if(debug) console.log("goBOF");
 	refreshCollection(true,0,getDuration(),"oldest");	// time is right-edge!
+	document.getElementById('play').innerHTML = '>';		// make sure not RT 
 //	goTime(0);			// absolute BOF per oldestTime (same all chans)
+	getLimits(1,0);		// ??
 }
 
 function goPause() {
@@ -3525,7 +3554,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.95*dt;				// play a little fast to help catchup if behind (was *0.9)
+						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.95)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
@@ -3616,12 +3645,14 @@ function updateHeaderInfo(xmlhttp, url, param) {
 		var Told = 1000 * Number(holdest);
 //		if(Told!=0 && ((oldestTime == 0 || Told < oldestTime) || param == plots[0].params[0])) 	
 //		if(Told < oldestTime)
-		if(!headerInfo[param].oldest || Told<headerInfo[param].oldest) headerInfo[param].oldest = Told;
+//		if(!headerInfo[param].oldest || Told<headerInfo[param].oldest) 
+			headerInfo[param].oldest = Told;
 		if(Told < oldestTime || ref=="oldest") {		// force oldestTime update on ref=oldest request
 			oldestTime = Told;
+//			console.log("updateHeaderInfo, Told: "+Told+", oldestTime: "+oldestTime);
 			for(var hi in headerInfo) {
 				if(headerInfo[hi].oldest < oldestTime) oldestTime = headerInfo[hi].oldest;
-//				console.log("check oldest of oldest, this:"+headerInfo[hi].oldest+", oldestTime: "+oldestTime);
+//				console.log("check oldest of oldest: "+hi+", this:"+headerInfo[hi].oldest+", oldestTime: "+oldestTime);
 			}
 		}
 //		console.log("updateHeader, oldestTime: "+oldestTime);
@@ -3636,6 +3667,7 @@ function updateHeaderInfo(xmlhttp, url, param) {
 			if(headerInfo[param].newest) headerInfo[param].blockDur = Tnew - headerInfo[param].newest;
 			headerInfo[param].newest = Tnew;
 		}
+//		console.debug("Tnew: "+Tnew+", newestTime: "+newestTime+", hnewest: "+hnewest);
 		if(Tnew > newestTime) newestTime = Tnew;
 	}
 	else AjaxGetParamTimeNewest(param);						// if not in header, fetch as separate call (e.g. for DT)
