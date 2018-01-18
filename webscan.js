@@ -489,7 +489,8 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		munge+="&refresh="+(new Date().getTime());		// no browser cache on ANY non-absolute time call
 
 	var url = serverAddr + servletRoot+"/"+escape(param)+munge;
-	if(debug) console.log('fetchData url: '+url);
+	if(debug) 
+		console.log('fetchData url: '+url);
 	
 	if(isImage) {
 		plots[plotidx].display.setImage(url,param,plots[plotidx].params.indexOf(param));
@@ -889,9 +890,9 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 							console.debug('media RT, param: '+param+', gotTime: '+headerInfo[param].gotTime+',  tfetch: '+tfetch+', newestTime: '+newestTime);
 
 //						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
-						var mdur = 2*playDelay;
-						if(mdur > 1) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images?
-						else		 fetchData(param, j, mdur, tfetch, "absolute");		// get past expected most-recent data
+						var mdur = 2*playDelay;												// units = MSEC
+						if(mdur > 10000) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images? (was mdur>1)
+						else		 	 fetchData(param, j, mdur, tfetch, "absolute");		// get past expected most-recent data
 						
 						if(debug) 
 							console.debug('media fetch mdur: '+mdur+', playDelay: '+playDelay);
@@ -3554,7 +3555,7 @@ function vidscan(param) {
 						}
 //						console.log('images: '+imageArray.length+', parse time: '+(new Date().getTime()-t1));
 						dt = duration/imageArray.length;
-						dt = 0.9*dt;				// play a little fast to help catchup if behind (was *0.95)
+						dt = 0.95*dt;				// play a little fast to help catchup if behind (was *0.9)
 						if(debug) 
 							console.log('multiple images: '+imageArray.length+', dt: '+dt+', duration: '+duration+', byteLength: '+length+', url: '+url);
 						showImage(0,param,img,imageArray,dt);
