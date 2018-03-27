@@ -719,8 +719,9 @@ function setParamText(text, url, args, time) {
 //		updateTimeLimits(time);			// needed?
 	}
 
-	if(!headerInfo[param].gotTime) headerInfo[param].gotTime - time;
-	if(debug) console.log("GOT setParamText, url: "+url);
+	if(!headerInfo[param].gotTime && time!=0) headerInfo[param].gotTime = time;
+	if(debug) 
+		console.log("GOT setParamText, url: "+url+", time: "+time);
 }
 
 //----------------------------------------------------------------------------------------
@@ -874,7 +875,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				if(headerInfo[param].gotStatus==PENDING) continue; 				// this won't queue anything (robust but images not as fast?)
 
 				// --------MEDIA: image
-				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!	
+				if(endsWith(param,".jpg") || endsWith(param,".txt")) {			// can have mixed .jpg & .wav params!	
+//				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!	
 //					if(headerInfo[param].gotStatus==PENDING) continue; 				// this won't queue anything (robust but images not as fast?)
 
 					if(top.rtflag==RT) {
@@ -891,8 +893,10 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 
 //						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
 						var mdur = 2*playDelay;												// units = MSEC
-						if(mdur > 10000) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images? (was mdur>1)
-						else		 	 fetchData(param, j, mdur, tfetch, "absolute");		// get past expected most-recent data
+//						if(mdur > 10000) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images? (was mdur>1)
+						if(endsWith(param,".txt") || mdur > 10000) 
+										fetchData(param, j, 0, 0, "newest");			// jump ahead if chunky images? (was mdur>1)
+						else		 	fetchData(param, j, mdur, tfetch, "absolute");	// get past expected most-recent data
 						
 						if(debug) 
 							console.debug('media fetch mdur: '+mdur+', playDelay: '+playDelay);
@@ -1267,8 +1271,10 @@ function AjaxGet(myfunc, url, args) {
 				if(pidx!=null) plots[pidx].nfetch--;
 //				if(args != null) updateHeaderInfo(xmlhttp, url, param);				
 				if(xmlhttp.status == 200) {
+					t = time;
+					if(t==0) t=headerInfo[param].gotTime;
 //					myfunc(xmlhttp.responseText, url, args, headerInfo[param].gotTime);	
-					myfunc(xmlhttp.responseText, url, args, time);			// last time arg for setParamText?
+					myfunc(xmlhttp.responseText, url, args, t);			// last time arg for setParamText?
 				}
 			}
 			else {		// ERROR Handling
