@@ -3701,6 +3701,8 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(xmlhttp.status==200) {		// only update some params if gotten
 //		headerInfo[param].gotStatus = GOTTEN;
 		headerInfo[param].gotTime = T + headerInfo[param].duration;			// most recent value
+		
+		if(ref=="next" || ref=="prev") setTime(T);							// fall-back to move timeslider
 	} 
 //	else	headerInfo[param].gotStatus = NONE;
 
