@@ -3276,13 +3276,23 @@ function plotbox() {
 //  ----------------------------------------------------------------------------------------    
 	// setText: display text in plot box
 	this.setText = function(text) {
-		var lineHeight = 20;
-		var lineMargin = 20;
+		var lineHeight = 18;
+		var lineMargin = 18;
 
 		var cvs = this.canvas[maxLayer-1];		// last layer
 		var ctx = cvs.getContext('2d');
-		ctx.font = "16px Arial";
+		ctx.font = "14px Arial";
 
+		// adjust text size for small windows:
+		if(cvs.width < 600) {
+			lineHeight = lineMargin = 15;
+			ctx.font = "12px Arial";
+		}
+		else if(cvs.width < 400) {
+			lineHeight = lineMargin = 12;
+			ctx.font = "10px Arial";
+		}
+		
 		ctx.beginPath();				// white "paper" box
 		ctx.rect(0, 0, cvs.width, cvs.height);
 		ctx.fillStyle = 'white';
@@ -3701,6 +3711,8 @@ function updateHeaderInfo(xmlhttp, url, param) {
 	if(xmlhttp.status==200) {		// only update some params if gotten
 //		headerInfo[param].gotStatus = GOTTEN;
 		headerInfo[param].gotTime = T + headerInfo[param].duration;			// most recent value
+		
+		if(ref=="next" || ref=="prev") setTime(T);							// fall-back to move timeslider
 	} 
 //	else	headerInfo[param].gotStatus = NONE;
 
