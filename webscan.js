@@ -446,7 +446,7 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 	var isAudio = ((endsWith(param, ".pcm") || endsWith(param, ".mp3") || endsWith(param, ".wav")));			// FFMPEG s16sle, or MP3 audio
 	
 	// text type data
-	var isText = endsWith(param, ".txt");
+	var isText = endsWith(param, ".txt") || endsWith(param, ".json");
 	
 	if(!isImage && (refTime == "next" || refTime == "prev")) {				// no next/prev with stripcharts?
 		refTime = "absolute";
@@ -875,7 +875,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				if(headerInfo[param].gotStatus==PENDING) continue; 				// this won't queue anything (robust but images not as fast?)
 
 				// --------MEDIA: image
-				if(endsWith(param,".jpg") || endsWith(param,".txt")) {			// can have mixed .jpg & .wav params!	
+				if(endsWith(param,".jpg") || endsWith(param,".txt") || endsWith(param, ".json")) {			// can have mixed .jpg & .wav params!
 //				if(endsWith(param,".jpg") /* || endsWith(param,".txt") */) {			// can have mixed .jpg & .wav params!	
 //					if(headerInfo[param].gotStatus==PENDING) continue; 				// this won't queue anything (robust but images not as fast?)
 
@@ -894,7 +894,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 //						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
 						var mdur = 2*playDelay;												// units = MSEC
 //						if(mdur > 10000) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images? (was mdur>1)
-						if(endsWith(param,".txt") || mdur > 10000) 
+						if(endsWith(param,".txt") || endsWith(param, ".json") || mdur > 10000)
 										fetchData(param, j, 0, 0, "newest");			// jump ahead if chunky images? (was mdur>1)
 						else		 	fetchData(param, j, mdur, tfetch, "absolute");	// get past expected most-recent data
 						
@@ -910,7 +910,7 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 				// --------STRIPCHART: time-series data at tDelay
 
 				else if(dtRT>=tDelay) {	
-					if(endsWith(param,'.txt')) {											// text: always zero duration
+					if(endsWith(param,'.txt') || endsWith(param, ".json")) {											// text: always zero duration
 						if(top.rtflag==RT) 	fetchData(param, j, 0, 0, "newest");			// get newest if RT (galumps!)
 						else				fetchData(param, j, 0, ptime, "absolute");
 					} 
@@ -1191,7 +1191,7 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 			plots[j].dropdata();						// avoid glitches?
 			plots[j].nfetch=0;							// count how many to fetch so know when to render (MJM 12/2/16)
 			for(var i=0; i<plots[j].params.length; i++) {
-				var isMedia = endsWith(plots[j].params[i], ".jpg") || endsWith(plots[j].params[i], ".txt");
+				var isMedia = endsWith(plots[j].params[i], ".jpg") || endsWith(plots[j].params[i], ".txt") || endsWith(plots[j].params[i], ".json");
 				var fetchd = fetchdur;
 				if(isMedia) fetchd = 0;
 //				console.debug('isMedia: '+isMedia+', plots['+j+'].params['+i+']: '+plots[j].params[i]+', fetchd: '+fetchd);
@@ -3160,7 +3160,7 @@ function plotbox() {
 		
 		if		(endsWith(param, ".jpg")) 							paramtype = 'video';
 //		else if	(endsWith(param,".mp3") || endsWith(param,".wav")) 	paramtype = 'audio';
-		else if (endsWith(param,"txt"))								paramtype = 'text';
+		else if (endsWith(param,"txt") || endsWith(param,"json"))	paramtype = 'text';
 		else														paramtype = 'stripchart';
 		if(this.type == null && paramtype != 'text') this.type = paramtype; 			// only set type on first param
 
