@@ -3303,6 +3303,7 @@ function plotbox() {
 
 		ctx.fillStyle = 'black';
 		var y = lineHeight+5;
+		text = text.replace(/[^.]{/gi,"\n{");   	// MJM 9/25/18:  split JSON strings on '{'
 		var lines = text.split('\n');
 		var firstLine = lines.length - Math.ceil((cvs.height-20) / lineHeight);	// drop old lines
 		if(firstLine < 0) firstLine = 0;
