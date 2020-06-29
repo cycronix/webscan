@@ -195,7 +195,7 @@ html, body {
 	position: relative;
 	background-color: rgb(220,220,220);
 	border: 1px solid white;
-	width: 100%;
+	width: 99.9%;
 	height: 100%;
 	z-index: 97;
 	margin-top:0;
