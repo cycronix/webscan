@@ -46,12 +46,13 @@
 	<td style="white-space: nowrap;"> <input type="radio" name="radios" id="|<"> <label for="|<"  onMouseDown="goBOF()"	>[</label> </td> 
 	<td width="80%">
 	<table align="center" width="100%">
-	<tr align="center">
-	<td style="white-space: nowrap; align="center" width="100%"><label class="t" id="timestamp">TimeStamp</></td>
-	</tr><tr>
+    <tr>
 	<td align="center" width="99%"> <input id="TimeSelect" type="range" min="0" max="100" step=0.1 
 		onchange="timeSelect(this)" oninput="timeSelect(this)"> </td>
 	</tr>
+    <tr align="center">
+    <td style="white-space: nowrap; align="center" width="100%"><label class="t" id="timestamp">TimeStamp</></td>
+    </tr>
 	</table>
 	</td>
 	<td style="white-space: nowrap;"> <input type="radio" name="radios" id=">|"> <label for=">|"  onMouseDown="goEOF()"	>]</label> </td> 
@@ -64,7 +65,7 @@
 
 <div id="options"  border=1>
     <table class="o">
-    	<tr><td colspan=2 align="center">Webscan V3.1d</td></tr>
+    	<tr><td colspan=2 align="center">Webscan V3.1f</td></tr>
         <tr><td>Smooth</td><td><input id="smooth" type="checkbox" onclick="smoothCheck(this)"></td></tr>
         
         <tr><td>Fill</td><td><input id="fill" type="checkbox" onclick="fillCheck(this)"></td></tr>

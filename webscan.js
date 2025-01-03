@@ -46,6 +46,7 @@ limitations under the License.
  * V3b2-7:	Streamline, responsive UI, improved RT, image layers
  * V3.0:	Freeze V3b7 as release (11/23/2016)
  * V3.1:	Bug fixes, continued RT logic tweeks, improved text mode UI
+ * V3.1e (3/10/2022): tweek RT fetch images to r-newest
  */
 
 //----------------------------------------------------------------------------------------	
@@ -499,6 +500,8 @@ function fetchData(param, plotidx, duration, time, refTime) {		// duration (msec
 		else 		AjaxGet(setParamValue, url, arguments);		// 'arguments' javascript keyword
 //		inProgress++;
 	}
+
+        plots[plotidx].seturl(location.protocol + '//' + location.host + url);  	// mjm 9/3/2023: save url for click-save url to clipboard
 }
 
 //----------------------------------------------------------------------------------------
@@ -894,7 +897,8 @@ function rtCollection(time) {		// incoming time is from getTime(), = right-edge 
 //						fetchData(param, j, 2*pDur, tfetch, "absolute");		// get past expected most-recent data
 						var mdur = 2*playDelay;												// units = MSEC
 //						if(mdur > 10000) fetchData(param, j, 0, tfetch, "newest");			// jump ahead if chunky images? (was mdur>1)
-						if(endsWith(param,".txt") || endsWith(param, ".json") || mdur > 10000)
+//						if(endsWith(param,".txt") || endsWith(param, ".json") || mdur > 10000)
+                        if(endsWith(param,".jpg") || endsWith(param,".txt") || endsWith(param, ".json") || mdur > 10000)    // mjm 3/10/2022: fast-response from CTweb PUTS (e.g. JiffyCam)
 										fetchData(param, j, 0, 0, "newest");			// jump ahead if chunky images? (was mdur>1)
 						else		 	fetchData(param, j, mdur, tfetch, "absolute");	// get past expected most-recent data
 						
@@ -1095,10 +1099,18 @@ function waitDone(maxWait) {
 //stepCollection:  step next/prev data (images only)
 
 function stepCollection(iplot, time, refdir) {
-	
+//	console.log("inProgress: "+inProgress+", refreshInprogress: "+refreshInProgress+", this.vidIP: "+plots[0].display.videoInProgress)
+    if(plots[iplot].display.videoInProgress > 1) return;        // mjm 7/1/22: ease off
+    
 	time = headerInfo[plots[iplot].params[0]].gotTime;		// simply go with first param of clicked-plot?
-	if(refdir=="next") 	time += 0.1;							// possible round-off error?
-	else				time -= 0.1;
+    if(time < 1) {          // mjm 7/1/22: catch bad-header-time case (?)
+        console.log("Oops, stepCollection bad header time: "+time);
+        refdir = "oldest";
+ //       return;
+    }
+    
+//	if(refdir=="next") 	time += 0.01;							// possible round-off error?  (mjm 5/30/22: was 0.1)
+//	else				time -= 0.01;
 	refreshCollection(true,time,getDuration(),refdir);			// full-update all plots
 /*	
 	// find and step image with oldest time
@@ -1149,6 +1161,7 @@ function stepCollection(iplot, time, refdir) {
 //refreshCollection:  refresh data, single step or continuous
 
 function refreshCollection(onestep, time, fetchdur, reftime) {				// time is right-edge time
+
 //	onestep=false for refilling plot and continuing with RT data 
 	refreshInProgress=true;
 	if(debug) console.log('refreshCollection: time: '+time+', reftime: '+reftime+', fetchdur: '+fetchdur+", onestep: "+onestep+', newestTime: '+newestTime);
@@ -1186,6 +1199,8 @@ function refreshCollection2(maxwait, onestep, time, fetchdur, reftime) {
 		if(debug) console.debug('>>> time: '+time+', newestTime: '+newestTime+', now: '+now+', lastreqTime: '+(lastreqTime)+', fetchdur: '+fetchdur+", reftime: "+reftime);
 	}
 
+// catch in stepCollection?:     if(time<1 && reftime=="next") reftime = "oldest";           // mjm 5/30/22
+    
 	if(onestep) {		// prefetch only if onestep?
 		for(var j=0; j<plots.length; j++) {				// get data once each plot
 			plots[j].dropdata();						// avoid glitches?
@@ -2254,7 +2269,14 @@ function mouseDown(e) {
 	thiswin = this;		// for mouseout
 
 	if(!plots[thisplot] || plots[thisplot].type == 'text') return;		// notta for text (yet)
-	
+
+// mjm 9/4/2023: produce downloadable link to data (e.g. jpeg):
+//    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+//        clickurl = plots[thisplot].url;
+//        navigator.clipboard.writeText(clickurl);
+//        console.log('click url: '+clickurl);
+//    }
+
 	reScale = true;
 	mouseIsMove=false;		// not yet
 	setPlay(PAUSE,0);
@@ -2304,7 +2326,13 @@ function mouseStep(dir) {
 		oldStepTime = stepTime;
 		setTimeSlider(getTime());
 	}
-	setTimeout(function(){mouseStep(dir);}, 100);
+    
+    
+    if(plots[thisplot].display.videoInProgress>1) tout = 100;
+    else tout = 10;
+ //   console.log("timeout: "+tout+", thisplot: "+thisplot+", vip: "+plots[thisplot].display.videoInProgress);
+    setTimeout(function(){mouseStep(dir);}, tout);     // faster response 100->50.  mjm 6/16/2022
+//	setTimeout(function(){mouseStep(dir);}, 100);
 }
 
 function mouseOut(e) {
@@ -2450,7 +2478,12 @@ function buildChanLists() {
 		add.appendChild(elo);
 		
 		var elo = document.createElement("option");
-		elo.value = elo.textContent = '[Refresh List]';
+		elo.value = elo.textContent = '[Refresh]';
+		add.appendChild(elo);
+		
+		// mjm 9/2023: make a tab with copyable data (e.g. jpeg):
+        	var elo = document.createElement("option");
+		elo.value = elo.textContent = '[Share]';
 		add.appendChild(elo);
 		
 		var mysrc=''; 	var elg='';
@@ -2534,9 +2567,16 @@ function addChanSelect() {
 	var chan = this.options[this.selectedIndex].value;
 	if(chan == '+') return;	// firewall: not a real selection
 
-	if(chan == '[Refresh List]') {
+	if(chan == '[Refresh]') {
 		fetchChanList();		// update list
 		return;
+	}
+
+	if(chan == '[Share]') {
+	    this.selectedIndex = 0;
+            ploturl = plots[thisplot].url;
+            window.open(ploturl);
+	    return;
 	}
 	
 	if(chan=='' || endsWith(chan,'/')) {
@@ -3154,6 +3194,13 @@ function plotbox() {
 	this.doFill=false;						// under-line fill?
 	this.doSmooth=false;					// bezier curve interpolate?
 	this.nfetch=0;
+        this.url=""
+
+        // not url of plotbox (first param)
+        this.seturl = function(url) {
+            this.url = url
+//            console.log('plot set url: '+url)
+        }
 	
 	// add a parameter to this plot
 	this.addParam = function(param) {
@@ -3444,7 +3491,7 @@ function vidscan(param) {
     var lastload=0;
     this.setImage = function(imgurl,param,ilayer) {
     	if(!this.canvas) return;
-    	
+    
     	if(debug) console.log("vidscan setImage, inprogress: "+this.videoInProgress+', imgurl: '+imgurl+', ilayer: '+ilayer);
 		var now = new Date().getTime();
 
@@ -3492,6 +3539,7 @@ function vidscan(param) {
 //    		console.debug('draw alpha: '+alpha+', ilayer: '+ilayer);
     		ctx.drawImage(this,x,y,w,h);
     	}
+
     	img.onerror = imgerror.bind(this);
     	
 		this.AjaxGetImage(imgurl,img,param);				// get image and timestamp one-step (from header)
@@ -3543,7 +3591,7 @@ function vidscan(param) {
         	fetchActive(false);
         	
     		if (xmlhttp.readyState==4) {    			
-				if(debug) 
+				if(debug)
 					console.log("AjaxGetImage, got: "+url+", inprogress: "+instance.videoInProgress+", status: "+xmlhttp.status);
 				instance.videoInProgress--;			// decremented in imgload()
 				if(instance.videoInProgress < 0) instance.videoInProgress = 0;
